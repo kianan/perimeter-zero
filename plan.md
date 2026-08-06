@@ -14,7 +14,7 @@ full 10-stage / 9-weapon / 4-archetype / 2-boss vision yet — that comes after.
 
 ## Build order
 
-- [ ] 0. Merge aim work (`run/brief-fix-aim`) into `main`
+- [x] 0. Merge aim work (`run/brief-fix-aim`) into `main`
 - [ ] 1. Weapon fires — bullet spawns from aim direction, travels, expires
 - [ ] 2. One enemy — spawns, moves toward the player
 - [ ] 3. Bullet↔enemy collision → enemy dies
