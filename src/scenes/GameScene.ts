@@ -45,7 +45,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.player = new Player(this, WORLD / 2, WORLD / 2);
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, WORLD, WORLD);
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<

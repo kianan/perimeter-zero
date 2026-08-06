@@ -14,12 +14,15 @@ export class Player extends Phaser.GameObjects.Container {
   private weaponSprite: Phaser.GameObjects.Sprite;
   private pbody!: Phaser.Physics.Arcade.Body;
   private anim: 'idle' | 'walk' = 'idle';
+  private targetPos = new Phaser.Math.Vector2();
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
 
     this.bodySprite = scene.add.sprite(0, 0, 'body_idle_0').setScale(SCALE);
     this.weaponSprite = scene.add.sprite(0, 0, 'weapon_idle_0').setScale(SCALE);
+    // weapon shares the body's origin (frame centre) so the layers stay aligned
+    // and the gun rotates about the character rather than flying off.
     this.add([this.bodySprite, this.weaponSprite]);
     this.setSize(110, 150); // physics body footprint
 
@@ -30,6 +33,34 @@ export class Player extends Phaser.GameObjects.Container {
 
     this.bodySprite.play('body_idle');
     this.weaponSprite.play('weapon_idle');
+
+    this.scene.events.on('update', this.update, this);
+  }
+
+  update(_time: number, _delta: number) {
+    this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer!.x, this.scene.input.activePointer!.y, this.targetPos);
+    this.bodySprite.flipX = this.targetPos.x < this.x;
+
+    // Calculate weapon pivot world position
+    const pivotX = this.x + this.weaponSprite.x;
+    const pivotY = this.y + this.weaponSprite.y;
+
+    // Calculate angle from pivot to pointer
+    const dx = this.targetPos.x - pivotX;
+    const dy = this.targetPos.y - pivotY;
+    const angle = Math.atan2(dy, dx);
+
+    // Smooth 360° rotation — interpolate across ±π boundary to prevent snapping
+    this.weaponSprite.rotation = this.lerpAngle(this.weaponSprite.rotation, angle, 0.15);
+    // mirror the weapon vertically when aiming left so it never renders upside-down
+    this.weaponSprite.setFlipY(Math.abs(angle) > Math.PI / 2);
+  }
+
+  private lerpAngle(current: number, target: number, t: number): number {
+    let diff = target - current;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    return current + diff * t;
   }
 
   private setAnim(anim: 'idle' | 'walk') {
@@ -48,7 +79,7 @@ export class Player extends Phaser.GameObjects.Container {
       if (input.x !== 0) {
         const flip = input.x < 0;
         this.bodySprite.setFlipX(flip);
-        this.weaponSprite.setFlipX(flip);
+        // Weapon rotation is now handled by cursor tracking
       }
     } else {
       this.setAnim('idle');
