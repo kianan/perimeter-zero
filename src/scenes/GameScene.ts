@@ -3,6 +3,7 @@ import { Player } from '../player/Player';
 import { Enemy } from '../enemies/Enemy';
 import { Bullet } from '../weapons/Bullet';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
+import { Popup } from '../ui/Popup';
 
 const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from the player -- spawn ring radius
@@ -30,6 +31,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    // scene.restart() (see endRound()'s Restart button) re-runs create(), not the constructor
+    // -- class-field initializers below only fire once, ever, so reset mutable state here or
+    // a restarted run inherits stale enemies/bullets/roundOver from the previous one.
+    this.enemies = [];
+    this.bullets = [];
+    this.roundOver = false;
+
     this.drawGround();
     createCharacterAnims(this);
 
@@ -83,34 +91,31 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Player hit 0 HP. Freeze the world (physics pause -- doesn't stop the player's death
-   * anim, which runs off the anim system, not physics) and show a game-over message.
-   * No restart yet -- out of scope for this step, that's a later decision. */
+   * anim, which runs off the anim system, not physics) and show a game-over popup. */
   private gameOver() {
-    this.endRound('GAME OVER', '#ff3b3b');
+    this.endRound('GAME OVER', '#ff3b3b', false);
   }
 
-  /** Survived the timer. Same freeze as gameOver(), different message. */
+  /** Survived the timer. Same freeze as gameOver(), different message/buttons. */
   private win() {
-    this.endRound('YOU SURVIVED', '#4ade80');
+    this.endRound('YOU SURVIVED', '#4ade80', true);
   }
 
-  private endRound(message: string, color: string) {
+  private endRound(message: string, color: string, won: boolean) {
     if (this.roundOver) return;
     this.roundOver = true;
     this.player.freeze();
     this.physics.pause();
 
+    const buttons = won
+      ? [{ label: 'Main Menu', onClick: () => this.scene.start('menu') }]
+      : [
+          { label: 'Restart', onClick: () => this.scene.restart() },
+          { label: 'Main Menu', onClick: () => this.scene.start('menu') },
+        ];
+
     const { width, height } = this.cameras.main;
-    this.add
-      .text(width / 2, height / 2, message, {
-        fontFamily: 'sans-serif',
-        fontSize: '48px',
-        color,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(1000);
+    new Popup(this, width / 2, height / 2, { message, color, buttons }).setDepth(1000);
   }
 
   /** Spawns a rusher at a random angle around the player, at a fixed ring distance,

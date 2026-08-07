@@ -51,10 +51,13 @@ instead: names/stats move into a `weapons.csv` data file rather than getting har
 - [x] 10. Main menu scene — new `MenuScene` (Start button for now, Credits later), wired into
   `main.ts`'s scene list. Needs 9 (Button). Also becomes a required navigation *target*: 11's
   "Main Menu" button has nowhere to go until this exists.
-- [ ] 11. End-of-run popup — replaces the current plain "GAME OVER"/"YOU SURVIVED" text in
+- [x] 11. End-of-run popup — replaces the current plain "GAME OVER"/"YOU SURVIVED" text in
   `GameScene` with a proper popup: `[Restart, Main Menu]` buttons on a loss, `[Main Menu]` only
   on a win. Restart calls `this.scene.restart()` (Phaser's built-in scene reset — no separate
-  state-reset system needed). Needs 9 (Button) and 10 (Main menu, as the Main-Menu button's
+  state-reset system needed). Found and fixed a real bug along the way: `scene.restart()`
+  re-runs `create()` but not the constructor, so `roundOver`/`enemies`/`bullets` needed an
+  explicit reset in `create()` or a restarted run would inherit stale state and freeze
+  immediately. Needs 9 (Button) and 10 (Main menu, as the Main-Menu button's
   target). Design the popup's content area as a generic slot (optional list of text lines
   between the message and the buttons) so a future loot/Scrap summary can drop in later as a
   content change, not a popup rewrite — no loot/economy system exists yet (GDD §7), so there's
