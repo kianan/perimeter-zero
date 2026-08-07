@@ -12,6 +12,7 @@ const PLAYER_DEATH_FRAMES = 10;
 const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from the player -- spawn ring radius
 const RUSHER_CONTACT_DAMAGE = 10; // placeholder -- no per-archetype damage stats yet
+const BULLET_DAMAGE = 10; // placeholder -- matches the GDD §4 spec table's starter-gun base damage
 const SPAWN_INTERVAL_MS = 3000; // placeholder -- no wave/difficulty curve yet, just a steady drip
 const SURVIVE_SECONDS = 60; // placeholder -- no tuned run length yet
 
@@ -108,7 +109,7 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
-      (enemyObj as Enemy).die();
+      (enemyObj as Enemy).takeDamage(BULLET_DAMAGE);
     });
     this.physics.add.overlap(this.player, this.enemies, (_playerObj, _enemyObj) => {
       this.player.takeDamage(RUSHER_CONTACT_DAMAGE);

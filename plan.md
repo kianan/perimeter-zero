@@ -22,12 +22,41 @@ full 10-stage / 9-weapon / 4-archetype / 2-boss vision yet — that comes after.
 - [x] 5. Player health + game-over on 0 HP
 - [x] 6. Basic spawner — enemies appear on a timer
 - [x] 7. Win condition (survive N seconds) + minimal HUD (health, timer)
-- [ ] 8. Swap in generated names from `content_pipeline/` (weapons.md / enemies.md)
 
 Once 0–7 are playable end to end, resume routing well-scoped **additive** work (a second enemy
 type, a second weapon, a second wave) to the agent pipeline — that's genuine incremental
 extension of an established pattern, which is what it's actually good at. Foundational,
 interdependent systems (this list) get hand-built.
+
+## Next: base architecture scaffolding
+
+The vertical slice (0–7) is playable end to end. Before routing further feature work to the
+agent pipeline (local LLM), a few more foundational/reusable pieces are worth hand-building
+first — UI chrome and a shared damage pattern that later content should build on top of, not
+duplicate. Supersedes the old step 8 (swap in generated names) — see `brief-database.md`
+instead: names/stats move into a `weapons.csv` data file rather than getting hardcoded here.
+
+- [x] 8. Enemy health — `Enemy` gets `hp`/`takeDamage(amount)` (same shape as `Player`'s):
+  deduct on hit, red tint flash, die only at 0 HP. `die()` is now private — the only way to
+  kill an enemy is through `takeDamage()`. Was independent of the rest of this list — no
+  dependency either way. Once both Player and Enemy share the same hp/tint/die shape, worth
+  noticing whether it's worth pulling into a shared base (e.g. `Damageable`) rather than
+  duplicating it again for the next enemy archetype.
+- [ ] 9. Reusable `Button` component — label + interactive rect/sprite + click callback.
+  Shared primitive needed by both 10 and 11 below.
+- [ ] 10. Main menu scene — new `MenuScene` (Start button for now, Credits later), wired into
+  `main.ts`'s scene list. Needs 9 (Button). Also becomes a required navigation *target*: 11's
+  "Main Menu" button has nowhere to go until this exists.
+- [ ] 11. End-of-run popup — replaces the current plain "GAME OVER"/"YOU SURVIVED" text in
+  `GameScene` with a proper popup: `[Restart, Main Menu]` buttons on a loss, `[Main Menu]` only
+  on a win. Restart calls `this.scene.restart()` (Phaser's built-in scene reset — no separate
+  state-reset system needed). Needs 9 (Button) and 10 (Main menu, as the Main-Menu button's
+  target). Design the popup's content area as a generic slot (optional list of text lines
+  between the message and the buttons) so a future loot/Scrap summary can drop in later as a
+  content change, not a popup rewrite — no loot/economy system exists yet (GDD §7), so there's
+  nothing to actually show there today.
+
+Order: 8 is done. 9 → 10 → 11 is a hard chain — each needs the one before it.
 
 ## Known follow-ups
 
