@@ -18,7 +18,7 @@ full 10-stage / 9-weapon / 4-archetype / 2-boss vision yet — that comes after.
 - [x] 1. Weapon fires — bullet spawns from aim direction, travels, expires
 - [x] 2. One enemy — spawns, moves toward the player
 - [x] 3. Bullet↔enemy collision → enemy dies
-- [ ] 4. Enemy↔player collision → player takes damage
+- [x] 4. Enemy↔player collision → player takes damage
 - [ ] 5. Player health + game-over on 0 HP
 - [ ] 6. Basic spawner — enemies appear on a timer
 - [ ] 7. Win condition (survive N seconds) + minimal HUD (health, timer)
@@ -28,6 +28,14 @@ Once 0–7 are playable end to end, resume routing well-scoped **additive** work
 type, a second weapon, a second wave) to the agent pipeline — that's genuine incremental
 extension of an established pattern, which is what it's actually good at. Foundational,
 interdependent systems (this list) get hand-built.
+
+## Known follow-ups
+
+- **Prevent overlapping of bodies** — Player↔enemy (and eventually enemy↔enemy) currently use
+  `physics.add.overlap()`, which only *detects* intersection to trigger contact damage; it
+  doesn't stop the bodies from moving through each other. Rushers can walk fully on top of the
+  player right now. Switch to (or add) `physics.add.collider()` so bodies physically separate,
+  once it's clear how that should interact with contact-damage timing/knockback.
 
 ## Assets needed, by step
 

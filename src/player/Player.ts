@@ -16,6 +16,12 @@ const MUZZLE_OFFSET = 45; // px forward from the weapon pivot, along aim -- appr
 const BULLET_SPEED = 600;
 const BULLET_LIFESPAN_MS = 1200;
 
+// No tuned values in the GDD yet (meta-progression stats exist, base stats don't) --
+// placeholders, same as the fire/bullet constants above. Nudge once balance matters.
+const MAX_HP = 20;
+const INVULN_MS = 500; // grace window after a hit so touching an enemy doesn't melt HP per-frame
+const HIT_FLASH_MS = 120;
+
 /**
  * Layered player rig: body + weapon are two pixel-aligned sprites in one
  * Container, playing idle/walk in sync. Movement is Arcade-physics velocity;
@@ -29,6 +35,8 @@ export class Player extends Phaser.GameObjects.Container {
   private anim: 'idle' | 'walk' = 'idle';
   private targetPos = new Phaser.Math.Vector2();
   private aimAngle = 0;
+  private hp = MAX_HP;
+  private invulnerableUntil = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -71,6 +79,27 @@ export class Player extends Phaser.GameObjects.Container {
     const muzzleY = pivotY + Math.sin(rot) * MUZZLE_OFFSET;
     const bullet = new Bullet(this.scene, muzzleX, muzzleY, rot, BULLET_SPEED, BULLET_LIFESPAN_MS);
     this.onFire?.(bullet);
+  }
+
+  getHp() {
+    return this.hp;
+  }
+
+  /** Contact damage from an enemy. Ignored while within the post-hit invuln window,
+   * so standing inside an enemy doesn't drain HP every physics step. */
+  takeDamage(amount: number) {
+    const now = this.scene.time.now;
+    if (now < this.invulnerableUntil) return;
+    this.invulnerableUntil = now + INVULN_MS;
+    this.hp = Math.max(0, this.hp - amount);
+
+    // setTint (multiply blend, needs WebGL -- see main.ts) keeps the sprite's own shading
+    // visible under the red, unlike setTintFill's flat solid-color silhouette.
+    this.bodySprite.setTint(0xff3b3b);
+    this.scene.time.delayedCall(HIT_FLASH_MS, () => this.bodySprite.clearTint());
+
+    // No HUD yet (step 7) -- console is the only feedback for now besides the flash.
+    console.log(`player hp: ${this.hp}`);
   }
 
   update(_time: number, _delta: number) {

@@ -10,6 +10,7 @@ const RUSHER_DEATH_FRAMES = 10;
 
 const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from player, spawn-in distance for the step-2 test enemy
+const RUSHER_CONTACT_DAMAGE = 10; // placeholder -- no per-archetype damage stats yet
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -85,6 +86,9 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
       (enemyObj as Enemy).die();
+    });
+    this.physics.add.overlap(this.player, this.enemies, (_playerObj, _enemyObj) => {
+      this.player.takeDamage(RUSHER_CONTACT_DAMAGE);
     });
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<
