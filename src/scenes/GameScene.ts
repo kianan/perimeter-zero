@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { Player } from '../player/Player';
 import { Enemy } from '../enemies/Enemy';
+import { Bullet } from '../weapons/Bullet';
 
 // Animation frame counts per layer (see public/assets/characters/player/).
 const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 const LAYERS = ['body', 'weapon'] as const;
+const RUSHER_DEATH_FRAMES = 10;
 
 const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from player, spawn-in distance for the step-2 test enemy
@@ -12,6 +14,7 @@ const ENEMY_SPAWN_OFFSET = 400; // px from player, spawn-in distance for the ste
 export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies: Enemy[] = [];
+  private bullets: Bullet[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
 
   constructor() {
@@ -35,6 +38,9 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < ANIMS[anim]; i++) {
         this.load.image(`rusher_${anim}_${i}`, `assets/enemies/rusher/${anim}_${i}.png`);
       }
+    }
+    for (let i = 0; i < RUSHER_DEATH_FRAMES; i++) {
+      this.load.image(`rusher_death_${i}`, `assets/enemies/rusher/death_${i}.png`);
     }
   }
 
@@ -63,12 +69,23 @@ export class GameScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+    this.anims.create({
+      key: 'rusher_death',
+      frames: Array.from({ length: RUSHER_DEATH_FRAMES }, (_, i) => ({ key: `rusher_death_${i}` })),
+      frameRate: 15,
+      repeat: 0,
+    });
 
-    this.player = new Player(this, WORLD / 2, WORLD / 2);
+    this.player = new Player(this, WORLD / 2, WORLD / 2, (bullet) => this.trackBullet(bullet));
     this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, WORLD, WORLD);
 
-    this.enemies.push(new Enemy(this, WORLD / 2 + ENEMY_SPAWN_OFFSET, WORLD / 2));
+    this.trackEnemy(new Enemy(this, WORLD / 2 + ENEMY_SPAWN_OFFSET, WORLD / 2));
+
+    this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
+      (bulletObj as Bullet).destroy();
+      (enemyObj as Enemy).die();
+    });
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<
       'W' | 'A' | 'S' | 'D',
@@ -82,6 +99,24 @@ export class GameScene extends Phaser.Scene {
     this.player.move({ x, y });
 
     for (const enemy of this.enemies) enemy.chase(this.player.x, this.player.y);
+  }
+
+  // `overlap()` below keeps a reference to these arrays and re-reads them each frame --
+  // remove in place (splice) rather than reassigning, or the collider goes stale.
+  private trackBullet(bullet: Bullet) {
+    this.bullets.push(bullet);
+    bullet.once(Phaser.GameObjects.Events.DESTROY, () => {
+      const i = this.bullets.indexOf(bullet);
+      if (i !== -1) this.bullets.splice(i, 1);
+    });
+  }
+
+  private trackEnemy(enemy: Enemy) {
+    this.enemies.push(enemy);
+    enemy.once(Phaser.GameObjects.Events.DESTROY, () => {
+      const i = this.enemies.indexOf(enemy);
+      if (i !== -1) this.enemies.splice(i, 1);
+    });
   }
 
   private drawGround() {

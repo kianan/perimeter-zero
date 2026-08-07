@@ -12,6 +12,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   private bodySprite: Phaser.GameObjects.Sprite;
   private pbody!: Phaser.Physics.Arcade.Body;
   private anim: 'idle' | 'walk' = 'idle';
+  private dying = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -27,8 +28,19 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.bodySprite.play('rusher_idle');
   }
 
+  /** Plays the death anim, then destroys the container once it finishes. */
+  die() {
+    if (this.dying) return;
+    this.dying = true;
+    this.pbody.setVelocity(0, 0);
+    this.pbody.enable = false;
+    this.bodySprite.once('animationcomplete', () => this.destroy());
+    this.bodySprite.play('rusher_death');
+  }
+
   /** Steers straight toward (targetX, targetY) -- e.g. the player's position. */
   chase(targetX: number, targetY: number) {
+    if (this.dying) return;
     const dx = targetX - this.x;
     const dy = targetY - this.y;
     const dist = Math.hypot(dx, dy);

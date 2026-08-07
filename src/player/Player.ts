@@ -30,7 +30,12 @@ export class Player extends Phaser.GameObjects.Container {
   private targetPos = new Phaser.Math.Vector2();
   private aimAngle = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    private onFire?: (bullet: Bullet) => void,
+  ) {
     super(scene, x, y);
 
     this.bodySprite = scene.add.sprite(0, 0, 'body_idle_0').setScale(SCALE);
@@ -64,7 +69,8 @@ export class Player extends Phaser.GameObjects.Container {
     const rot = this.weaponSprite.rotation;
     const muzzleX = pivotX + Math.cos(rot) * MUZZLE_OFFSET;
     const muzzleY = pivotY + Math.sin(rot) * MUZZLE_OFFSET;
-    new Bullet(this.scene, muzzleX, muzzleY, rot, BULLET_SPEED, BULLET_LIFESPAN_MS);
+    const bullet = new Bullet(this.scene, muzzleX, muzzleY, rot, BULLET_SPEED, BULLET_LIFESPAN_MS);
+    this.onFire?.(bullet);
   }
 
   update(_time: number, _delta: number) {

@@ -17,7 +17,7 @@ full 10-stage / 9-weapon / 4-archetype / 2-boss vision yet — that comes after.
 - [x] 0. Merge aim work (`run/brief-fix-aim`) into `main`
 - [x] 1. Weapon fires — bullet spawns from aim direction, travels, expires
 - [x] 2. One enemy — spawns, moves toward the player
-- [ ] 3. Bullet↔enemy collision → enemy dies
+- [x] 3. Bullet↔enemy collision → enemy dies
 - [ ] 4. Enemy↔player collision → player takes damage
 - [ ] 5. Player health + game-over on 0 HP
 - [ ] 6. Basic spawner — enemies appear on a timer
@@ -61,4 +61,7 @@ interdependent systems (this list) get hand-built.
 - Real ground/level art — GDD §9 explicitly accepts flat/primitive-shape prototype visuals for
   now, so this is deliberately not blocking
 - Object pooling (GDD §10) — deferred until the loop works and perf is actually a problem, not
-  before
+  before. Bullets are the obvious first candidate: `fire()` currently does `new Bullet(...)`
+  per shot and lets its lifespan timer call `destroy()` — at 2 shots/sec that's cheap for now,
+  but should switch to a pool (reuse dead bullets instead of destroy/recreate) once fire rate
+  or bullet count goes up.
