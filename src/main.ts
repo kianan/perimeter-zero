@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import { GameScene } from './scenes/GameScene';
+import { KitchenSinkScene } from './scenes/KitchenSinkScene';
+
+// #kitchen boots straight into the dev-only component reference page instead of the game.
+const scenes = window.location.hash === '#kitchen' ? [KitchenSinkScene] : [GameScene];
 
 const config: Phaser.Types.Core.GameConfig = {
   // AUTO (WebGL, falling back to Canvas): sprite tint (setTint/setTintFill) is a WebGL
@@ -19,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
     arcade: { debug: false },
   },
-  scene: [GameScene],
+  scene: scenes,
 };
 
 new Phaser.Game(config);

@@ -42,8 +42,12 @@ instead: names/stats move into a `weapons.csv` data file rather than getting har
   dependency either way. Once both Player and Enemy share the same hp/tint/die shape, worth
   noticing whether it's worth pulling into a shared base (e.g. `Damageable`) rather than
   duplicating it again for the next enemy archetype.
-- [ ] 9. Reusable `Button` component — label + interactive rect/sprite + click callback.
-  Shared primitive needed by both 10 and 11 below.
+- [x] 9. Reusable `Button` component — label + interactive rect/sprite + click callback.
+  Shared primitive needed by both 10 and 11 below. Verified via a new dev-only kitchen sink
+  page (`#kitchen` URL hash, `KitchenSinkScene.ts`) rather than wiring it into real UI yet —
+  that's steps 10/11. Also extracted the preload/anim-creation code that used to be
+  duplicated inline in `GameScene` into `src/content/characterAssets.ts`, shared by both
+  scenes so they can't silently drift apart.
 - [ ] 10. Main menu scene — new `MenuScene` (Start button for now, Credits later), wired into
   `main.ts`'s scene list. Needs 9 (Button). Also becomes a required navigation *target*: 11's
   "Main Menu" button has nowhere to go until this exists.
