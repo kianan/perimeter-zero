@@ -20,7 +20,7 @@ full 10-stage / 9-weapon / 4-archetype / 2-boss vision yet — that comes after.
 - [x] 3. Bullet↔enemy collision → enemy dies
 - [x] 4. Enemy↔player collision → player takes damage
 - [x] 5. Player health + game-over on 0 HP
-- [ ] 6. Basic spawner — enemies appear on a timer
+- [x] 6. Basic spawner — enemies appear on a timer
 - [ ] 7. Win condition (survive N seconds) + minimal HUD (health, timer)
 - [ ] 8. Swap in generated names from `content_pipeline/` (weapons.md / enemies.md)
 

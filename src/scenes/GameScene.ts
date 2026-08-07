@@ -10,8 +10,9 @@ const RUSHER_DEATH_FRAMES = 10;
 const PLAYER_DEATH_FRAMES = 10;
 
 const WORLD = 2000; // square ground, px
-const ENEMY_SPAWN_OFFSET = 400; // px from player, spawn-in distance for the step-2 test enemy
+const ENEMY_SPAWN_OFFSET = 400; // px from the player -- spawn ring radius
 const RUSHER_CONTACT_DAMAGE = 10; // placeholder -- no per-archetype damage stats yet
+const SPAWN_INTERVAL_MS = 3000; // placeholder -- no wave/difficulty curve yet, just a steady drip
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -98,7 +99,8 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, WORLD, WORLD);
 
-    this.trackEnemy(new Enemy(this, WORLD / 2 + ENEMY_SPAWN_OFFSET, WORLD / 2));
+    this.spawnEnemy(); // one immediately, so the player isn't waiting out the first interval
+    this.time.addEvent({ delay: SPAWN_INTERVAL_MS, loop: true, callback: () => this.spawnEnemy() });
 
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
@@ -143,6 +145,16 @@ export class GameScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(1000);
+  }
+
+  /** Spawns a rusher at a random angle around the player, at a fixed ring distance,
+   * clamped inside the world bounds so it can't land off the playable ground. */
+  private spawnEnemy() {
+    if (this.isGameOver) return;
+    const angle = Math.random() * Math.PI * 2;
+    const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * ENEMY_SPAWN_OFFSET, 0, WORLD);
+    const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * ENEMY_SPAWN_OFFSET, 0, WORLD);
+    this.trackEnemy(new Enemy(this, x, y));
   }
 
   // `overlap()` below keeps a reference to these arrays and re-reads them each frame --
