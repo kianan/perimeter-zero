@@ -39,6 +39,8 @@ export class Player extends Phaser.GameObjects.Container {
   private invulnerableUntil = 0;
 
   private dead = false;
+  // Set on a win (round ends without the player dying) -- unlike `dead`, no death anim/callback.
+  private frozen = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -71,8 +73,14 @@ export class Player extends Phaser.GameObjects.Container {
     scene.time.addEvent({ delay: FIRE_INTERVAL_MS, loop: true, callback: () => this.fire() });
   }
 
+  /** Stops shooting/moving/aiming without playing the death anim -- for a win, not a loss. */
+  freeze() {
+    this.frozen = true;
+    this.pbody.setVelocity(0, 0);
+  }
+
   private fire() {
-    if (this.dead) return;
+    if (this.dead || this.frozen) return;
     // Spawn from the actual muzzle, not the player's center: weapon pivot (player pos +
     // weapon's local offset) pushed forward along the weapon's current rendered rotation
     // (not the raw aimAngle -- that lags behind via the lerp smoothing in update()).
@@ -87,6 +95,10 @@ export class Player extends Phaser.GameObjects.Container {
 
   getHp() {
     return this.hp;
+  }
+
+  getMaxHp() {
+    return MAX_HP;
   }
 
   /** Contact damage from an enemy. Ignored while within the post-hit invuln window,
@@ -117,7 +129,7 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   update(_time: number, _delta: number) {
-    if (this.dead) return;
+    if (this.dead || this.frozen) return;
     this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer!.x, this.scene.input.activePointer!.y, this.targetPos);
     this.bodySprite.flipX = this.targetPos.x < this.x;
 
@@ -153,7 +165,7 @@ export class Player extends Phaser.GameObjects.Container {
 
   /** input: {x,y} each in {-1,0,1} from WASD. */
   move(input: { x: number; y: number }) {
-    if (this.dead) {
+    if (this.dead || this.frozen) {
       this.pbody.setVelocity(0, 0);
       return;
     }

@@ -13,13 +13,17 @@ const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from the player -- spawn ring radius
 const RUSHER_CONTACT_DAMAGE = 10; // placeholder -- no per-archetype damage stats yet
 const SPAWN_INTERVAL_MS = 3000; // placeholder -- no wave/difficulty curve yet, just a steady drip
+const SURVIVE_SECONDS = 60; // placeholder -- no tuned run length yet
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
-  private isGameOver = false;
+  private hudText!: Phaser.GameObjects.Text;
+  private roundStartTime = 0;
+  // Covers both win and lose -- either one freezes the world the same way.
+  private roundOver = false;
 
   constructor() {
     super('game');
@@ -114,32 +118,54 @@ export class GameScene extends Phaser.Scene {
       'W' | 'A' | 'S' | 'D',
       Phaser.Input.Keyboard.Key
     >;
+
+    this.hudText = this.add
+      .text(16, 16, '', { fontFamily: 'sans-serif', fontSize: '20px', color: '#ffffff' })
+      .setScrollFactor(0)
+      .setDepth(1000);
+    this.roundStartTime = this.time.now;
   }
 
   update() {
-    if (this.isGameOver) return;
+    if (this.roundOver) return;
 
     const x = (this.keys.D.isDown ? 1 : 0) - (this.keys.A.isDown ? 1 : 0);
     const y = (this.keys.S.isDown ? 1 : 0) - (this.keys.W.isDown ? 1 : 0);
     this.player.move({ x, y });
 
     for (const enemy of this.enemies) enemy.chase(this.player.x, this.player.y);
+
+    const remaining = Math.max(0, SURVIVE_SECONDS - (this.time.now - this.roundStartTime) / 1000);
+    this.hudText.setText(
+      `HP: ${this.player.getHp()}/${this.player.getMaxHp()}    Time: ${Math.ceil(remaining)}s`,
+    );
+    if (remaining <= 0) this.win();
   }
 
   /** Player hit 0 HP. Freeze the world (physics pause -- doesn't stop the player's death
    * anim, which runs off the anim system, not physics) and show a game-over message.
-   * No restart yet -- out of scope for step 5, that's a later decision. */
+   * No restart yet -- out of scope for this step, that's a later decision. */
   private gameOver() {
-    if (this.isGameOver) return;
-    this.isGameOver = true;
+    this.endRound('GAME OVER', '#ff3b3b');
+  }
+
+  /** Survived the timer. Same freeze as gameOver(), different message. */
+  private win() {
+    this.endRound('YOU SURVIVED', '#4ade80');
+  }
+
+  private endRound(message: string, color: string) {
+    if (this.roundOver) return;
+    this.roundOver = true;
+    this.player.freeze();
     this.physics.pause();
 
     const { width, height } = this.cameras.main;
     this.add
-      .text(width / 2, height / 2, 'GAME OVER', {
+      .text(width / 2, height / 2, message, {
         fontFamily: 'sans-serif',
         fontSize: '48px',
-        color: '#ff3b3b',
+        color,
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
@@ -150,7 +176,7 @@ export class GameScene extends Phaser.Scene {
   /** Spawns a rusher at a random angle around the player, at a fixed ring distance,
    * clamped inside the world bounds so it can't land off the playable ground. */
   private spawnEnemy() {
-    if (this.isGameOver) return;
+    if (this.roundOver) return;
     const angle = Math.random() * Math.PI * 2;
     const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * ENEMY_SPAWN_OFFSET, 0, WORLD);
     const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * ENEMY_SPAWN_OFFSET, 0, WORLD);
