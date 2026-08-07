@@ -18,7 +18,7 @@ const BULLET_LIFESPAN_MS = 1200;
 
 // No tuned values in the GDD yet (meta-progression stats exist, base stats don't) --
 // placeholders, same as the fire/bullet constants above. Nudge once balance matters.
-const MAX_HP = 20;
+const MAX_HP = 100;
 const INVULN_MS = 500; // grace window after a hit so touching an enemy doesn't melt HP per-frame
 const HIT_FLASH_MS = 120;
 
@@ -38,11 +38,14 @@ export class Player extends Phaser.GameObjects.Container {
   private hp = MAX_HP;
   private invulnerableUntil = 0;
 
+  private dead = false;
+
   constructor(
     scene: Phaser.Scene,
     x: number,
     y: number,
     private onFire?: (bullet: Bullet) => void,
+    private onDeath?: () => void,
   ) {
     super(scene, x, y);
 
@@ -69,6 +72,7 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   private fire() {
+    if (this.dead) return;
     // Spawn from the actual muzzle, not the player's center: weapon pivot (player pos +
     // weapon's local offset) pushed forward along the weapon's current rendered rotation
     // (not the raw aimAngle -- that lags behind via the lerp smoothing in update()).
@@ -88,6 +92,7 @@ export class Player extends Phaser.GameObjects.Container {
   /** Contact damage from an enemy. Ignored while within the post-hit invuln window,
    * so standing inside an enemy doesn't drain HP every physics step. */
   takeDamage(amount: number) {
+    if (this.dead) return;
     const now = this.scene.time.now;
     if (now < this.invulnerableUntil) return;
     this.invulnerableUntil = now + INVULN_MS;
@@ -100,9 +105,19 @@ export class Player extends Phaser.GameObjects.Container {
 
     // No HUD yet (step 7) -- console is the only feedback for now besides the flash.
     console.log(`player hp: ${this.hp}`);
+
+    if (this.hp === 0) {
+      this.dead = true;
+      this.pbody.setVelocity(0, 0);
+      this.weaponSprite.setVisible(false); // no death frames for the weapon layer
+      this.bodySprite.clearTint();
+      this.bodySprite.play('body_death');
+      this.onDeath?.();
+    }
   }
 
   update(_time: number, _delta: number) {
+    if (this.dead) return;
     this.scene.cameras.main.getWorldPoint(this.scene.input.activePointer!.x, this.scene.input.activePointer!.y, this.targetPos);
     this.bodySprite.flipX = this.targetPos.x < this.x;
 
@@ -138,6 +153,10 @@ export class Player extends Phaser.GameObjects.Container {
 
   /** input: {x,y} each in {-1,0,1} from WASD. */
   move(input: { x: number; y: number }) {
+    if (this.dead) {
+      this.pbody.setVelocity(0, 0);
+      return;
+    }
     const v = new Phaser.Math.Vector2(input.x, input.y);
     if (v.lengthSq() > 0) {
       v.normalize().scale(SPEED); // normalize -> no faster diagonals

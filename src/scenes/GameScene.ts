@@ -7,6 +7,7 @@ import { Bullet } from '../weapons/Bullet';
 const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 const LAYERS = ['body', 'weapon'] as const;
 const RUSHER_DEATH_FRAMES = 10;
+const PLAYER_DEATH_FRAMES = 10;
 
 const WORLD = 2000; // square ground, px
 const ENEMY_SPAWN_OFFSET = 400; // px from player, spawn-in distance for the step-2 test enemy
@@ -17,6 +18,7 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
+  private isGameOver = false;
 
   constructor() {
     super('game');
@@ -42,6 +44,9 @@ export class GameScene extends Phaser.Scene {
     }
     for (let i = 0; i < RUSHER_DEATH_FRAMES; i++) {
       this.load.image(`rusher_death_${i}`, `assets/enemies/rusher/death_${i}.png`);
+    }
+    for (let i = 0; i < PLAYER_DEATH_FRAMES; i++) {
+      this.load.image(`body_death_${i}`, `assets/characters/player/body/death_${i}.png`);
     }
   }
 
@@ -76,8 +81,20 @@ export class GameScene extends Phaser.Scene {
       frameRate: 15,
       repeat: 0,
     });
+    this.anims.create({
+      key: 'body_death',
+      frames: Array.from({ length: PLAYER_DEATH_FRAMES }, (_, i) => ({ key: `body_death_${i}` })),
+      frameRate: 15,
+      repeat: 0,
+    });
 
-    this.player = new Player(this, WORLD / 2, WORLD / 2, (bullet) => this.trackBullet(bullet));
+    this.player = new Player(
+      this,
+      WORLD / 2,
+      WORLD / 2,
+      (bullet) => this.trackBullet(bullet),
+      () => this.gameOver(),
+    );
     this.cameras.main.startFollow(this.player, false, 0.1, 0.1);
     this.cameras.main.setBounds(0, 0, WORLD, WORLD);
 
@@ -98,11 +115,34 @@ export class GameScene extends Phaser.Scene {
   }
 
   update() {
+    if (this.isGameOver) return;
+
     const x = (this.keys.D.isDown ? 1 : 0) - (this.keys.A.isDown ? 1 : 0);
     const y = (this.keys.S.isDown ? 1 : 0) - (this.keys.W.isDown ? 1 : 0);
     this.player.move({ x, y });
 
     for (const enemy of this.enemies) enemy.chase(this.player.x, this.player.y);
+  }
+
+  /** Player hit 0 HP. Freeze the world (physics pause -- doesn't stop the player's death
+   * anim, which runs off the anim system, not physics) and show a game-over message.
+   * No restart yet -- out of scope for step 5, that's a later decision. */
+  private gameOver() {
+    if (this.isGameOver) return;
+    this.isGameOver = true;
+    this.physics.pause();
+
+    const { width, height } = this.cameras.main;
+    this.add
+      .text(width / 2, height / 2, 'GAME OVER', {
+        fontFamily: 'sans-serif',
+        fontSize: '48px',
+        color: '#ff3b3b',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(1000);
   }
 
   // `overlap()` below keeps a reference to these arrays and re-reads them each frame --
