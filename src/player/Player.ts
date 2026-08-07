@@ -1,7 +1,20 @@
 import Phaser from 'phaser';
+import { Bullet } from '../weapons/Bullet';
 
 const SPEED = 260;      // px/sec
 const SCALE = 0.16;     // 2048px source frames -> ~a game-sized character
+const WEAPON_SCALE = 0.1;     // 2048px source frames -> ~a game-sized character
+// Weapon frames are canvas-centered (see public/assets/README), same as the body's own
+// canvas-center sits near the top of the head -- drop the weapon to roughly chest/hand
+// height. Estimated from body proportions; nudge if it still reads too high/low.
+const WEAPON_Y_OFFSET = 100;
+
+// Default starter gun stats (GDD weapon spec table: 2 shots/sec). Traveling projectile
+// for now, not hitscan -- easier to see it working; can swap later per weapon.
+const FIRE_INTERVAL_MS = 500;
+const MUZZLE_OFFSET = 45; // px forward from the weapon pivot, along aim -- approximate, nudge to taste
+const BULLET_SPEED = 600;
+const BULLET_LIFESPAN_MS = 1200;
 
 /**
  * Layered player rig: body + weapon are two pixel-aligned sprites in one
@@ -15,14 +28,18 @@ export class Player extends Phaser.GameObjects.Container {
   private pbody!: Phaser.Physics.Arcade.Body;
   private anim: 'idle' | 'walk' = 'idle';
   private targetPos = new Phaser.Math.Vector2();
+  private aimAngle = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
 
     this.bodySprite = scene.add.sprite(0, 0, 'body_idle_0').setScale(SCALE);
-    this.weaponSprite = scene.add.sprite(0, 0, 'weapon_idle_0').setScale(SCALE);
-    // weapon shares the body's origin (frame centre) so the layers stay aligned
-    // and the gun rotates about the character rather than flying off.
+    // weapon frames are pre-shifted (see public/assets/README) so the grip sits at each
+    // frame's canvas center -- default origin (0.5, 0.5) is correct. Position dropped to
+    // roughly hand height (see WEAPON_Y_OFFSET); the grip stays the rotation pivot either way.
+    this.weaponSprite = scene.add
+      .sprite(0, WEAPON_Y_OFFSET, 'weapon_idle_0')
+      .setScale(WEAPON_SCALE);
     this.add([this.bodySprite, this.weaponSprite]);
     this.setSize(110, 150); // physics body footprint
 
@@ -35,6 +52,19 @@ export class Player extends Phaser.GameObjects.Container {
     this.weaponSprite.play('weapon_idle');
 
     this.scene.events.on('update', this.update, this);
+    scene.time.addEvent({ delay: FIRE_INTERVAL_MS, loop: true, callback: () => this.fire() });
+  }
+
+  private fire() {
+    // Spawn from the actual muzzle, not the player's center: weapon pivot (player pos +
+    // weapon's local offset) pushed forward along the weapon's current rendered rotation
+    // (not the raw aimAngle -- that lags behind via the lerp smoothing in update()).
+    const pivotX = this.x + this.weaponSprite.x;
+    const pivotY = this.y + this.weaponSprite.y;
+    const rot = this.weaponSprite.rotation;
+    const muzzleX = pivotX + Math.cos(rot) * MUZZLE_OFFSET;
+    const muzzleY = pivotY + Math.sin(rot) * MUZZLE_OFFSET;
+    new Bullet(this.scene, muzzleX, muzzleY, rot, BULLET_SPEED, BULLET_LIFESPAN_MS);
   }
 
   update(_time: number, _delta: number) {
@@ -49,6 +79,7 @@ export class Player extends Phaser.GameObjects.Container {
     const dx = this.targetPos.x - pivotX;
     const dy = this.targetPos.y - pivotY;
     const angle = Math.atan2(dy, dx);
+    this.aimAngle = angle;
 
     // Smooth 360° rotation — interpolate across ±π boundary to prevent snapping
     this.weaponSprite.rotation = this.lerpAngle(this.weaponSprite.rotation, angle, 0.15);
@@ -67,7 +98,7 @@ export class Player extends Phaser.GameObjects.Container {
     if (this.anim === anim) return;
     this.anim = anim;
     this.bodySprite.play(`body_${anim}`);
-    this.weaponSprite.play(`weapon_${anim}`);
+    // this.weaponSprite.play(`weapon_${anim}`);
   }
 
   /** input: {x,y} each in {-1,0,1} from WASD. */

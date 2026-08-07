@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from '../player/Player';
 
-// Animation frame counts per layer (see public/assets/character_1/).
+// Animation frame counts per layer (see public/assets/characters/player/).
 const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 const LAYERS = ['body', 'weapon'] as const;
 
@@ -21,11 +21,12 @@ export class GameScene extends Phaser.Scene {
         for (let i = 0; i < ANIMS[anim]; i++) {
           this.load.image(
             `${layer}_${anim}_${i}`,
-            `assets/character_1/${layer}/${anim}_${i}.png`,
+            `assets/characters/player/${layer}/${anim}_${i}.png`,
           );
         }
       }
     }
+    this.load.image('bullet', 'assets/weapons/projectiles/bullet.png');
   }
 
   create() {
