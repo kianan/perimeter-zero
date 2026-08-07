@@ -48,7 +48,7 @@ instead: names/stats move into a `weapons.csv` data file rather than getting har
   that's steps 10/11. Also extracted the preload/anim-creation code that used to be
   duplicated inline in `GameScene` into `src/content/characterAssets.ts`, shared by both
   scenes so they can't silently drift apart.
-- [ ] 10. Main menu scene — new `MenuScene` (Start button for now, Credits later), wired into
+- [x] 10. Main menu scene — new `MenuScene` (Start button for now, Credits later), wired into
   `main.ts`'s scene list. Needs 9 (Button). Also becomes a required navigation *target*: 11's
   "Main Menu" button has nowhere to go until this exists.
 - [ ] 11. End-of-run popup — replaces the current plain "GAME OVER"/"YOU SURVIVED" text in
