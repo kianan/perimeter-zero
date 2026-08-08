@@ -5,12 +5,14 @@ import { Bullet } from '../weapons/Bullet';
 import { Grenade } from '../weapons/Grenade';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
 import { GameEndPopup } from '../ui/GameEndPopup';
+import { DevLog } from '../ui/DevLog';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
 import { preloadPlayerState, getPlayerState } from '../content/playerState';
 import { preloadLevelData, getLevel, getLevelEnemies } from '../content/levels';
 import { preloadEnemyData, getEnemy } from '../content/enemies';
 import { preloadPlayerLevelData, getPlayerLevel } from '../content/playerLevel';
 import { preloadAugmentData, getAugment, ResolvedAugment } from '../content/augments';
+import { preloadAugmentLevelData, getAugmentLevelThreshold } from '../content/augmentLevel';
 import { ENEMY_ARCHETYPES } from '../enemies/archetypes';
 
 // No level-select/progression system yet -- always load level 1's data.
@@ -41,9 +43,14 @@ export class GameScene extends Phaser.Scene {
   private augmentExpMaxDrop = 0;
   // Resolved from augment_weapon.csv/augment_weapon_scale.csv, see content/augments.ts.
   private grenade!: ResolvedAugment;
-  // brief-augment.md step 2: accumulates from enemy kills (see trackEnemy()). No level-up
-  // detection yet (step 3) -- just proving the number accumulates correctly.
+  // brief-augment.md: accumulates from enemy kills (see awardAugmentExp()).
   private augmentExp = 0;
+  // Starts at 1 (matches augment_level.csv's level=1/exp_required=0 baseline). No choice
+  // popup yet (step 4) -- checkAugmentLevelUp() just logs and increments for now.
+  private augmentLevel = 1;
+  // Dev-build-only on-screen log, bottom-left -- undefined (and logDev() a no-op) in a
+  // production build. See ui/DevLog.ts.
+  private devLog?: DevLog;
 
   constructor() {
     super('game');
@@ -57,6 +64,7 @@ export class GameScene extends Phaser.Scene {
     preloadEnemyData(this);
     preloadPlayerLevelData(this);
     preloadAugmentData(this);
+    preloadAugmentLevelData(this);
   }
 
   create() {
@@ -67,6 +75,7 @@ export class GameScene extends Phaser.Scene {
     this.bullets = [];
     this.roundOver = false;
     this.augmentExp = 0;
+    this.augmentLevel = 1;
 
     createCharacterAnims(this);
 
@@ -138,6 +147,14 @@ export class GameScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(1000);
     this.roundStartTime = this.time.now;
+
+    if (import.meta.env.DEV) {
+      this.devLog = new DevLog(this);
+    }
+  }
+
+  private logDev(message: string) {
+    this.devLog?.log(message);
   }
 
   update() {
@@ -276,10 +293,26 @@ export class GameScene extends Phaser.Scene {
       // Enemy.destroy() only ever happens via die() (takeDamage reaching 0) today, so DESTROY
       // reliably means "killed by the player" -- fine to award exp here without a separate
       // "was this actually a kill" check.
-      const gained = Phaser.Math.Between(this.augmentExpMinDrop, this.augmentExpMaxDrop);
-      this.augmentExp += gained;
-      console.log(`augment exp: +${gained} (total: ${this.augmentExp})`);
+      this.awardAugmentExp(Phaser.Math.Between(this.augmentExpMinDrop, this.augmentExpMaxDrop));
     });
+  }
+
+  private awardAugmentExp(amount: number) {
+    this.augmentExp += amount;
+    this.logDev(`+${amount} exp (total: ${this.augmentExp})`);
+    this.checkAugmentLevelUp();
+  }
+
+  /** Compares augmentExp against augment_level.csv's next threshold; loops in case one big
+   * gain crosses more than one level at once. No choice popup yet (step 4) -- just logs and
+   * increments augmentLevel for now. */
+  private checkAugmentLevelUp() {
+    let nextThreshold = getAugmentLevelThreshold(this, this.augmentLevel + 1);
+    while (nextThreshold !== null && this.augmentExp >= nextThreshold) {
+      this.augmentLevel++;
+      this.logDev(`LEVEL UP! now level ${this.augmentLevel}`);
+      nextThreshold = getAugmentLevelThreshold(this, this.augmentLevel + 1);
+    }
   }
 
   private drawGround() {
