@@ -17,6 +17,8 @@ export interface ResolvedLevel {
   specialSpawn: string;
   worldSize: number;
   spawnOffset: number;
+  augmentExpMinDrop: number;
+  augmentExpMaxDrop: number;
 }
 
 export interface LevelEnemySpawn {
@@ -41,6 +43,8 @@ export function getLevel(scene: Phaser.Scene, levelId: string): ResolvedLevel {
     specialSpawn: row.special_spawn,
     worldSize: Number(row.world_size),
     spawnOffset: Number(row.spawn_offset),
+    augmentExpMinDrop: Number(row.augment_exp_min_drop),
+    augmentExpMaxDrop: Number(row.augment_exp_max_drop),
   };
 }
 

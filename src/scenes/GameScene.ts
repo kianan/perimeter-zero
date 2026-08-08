@@ -37,8 +37,13 @@ export class GameScene extends Phaser.Scene {
   private surviveSeconds = 0;
   private worldSize = 0;
   private spawnOffset = 0;
+  private augmentExpMinDrop = 0;
+  private augmentExpMaxDrop = 0;
   // Resolved from augment_weapon.csv/augment_weapon_scale.csv, see content/augments.ts.
   private grenade!: ResolvedAugment;
+  // brief-augment.md step 2: accumulates from enemy kills (see trackEnemy()). No level-up
+  // detection yet (step 3) -- just proving the number accumulates correctly.
+  private augmentExp = 0;
 
   constructor() {
     super('game');
@@ -61,6 +66,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.bullets = [];
     this.roundOver = false;
+    this.augmentExp = 0;
 
     createCharacterAnims(this);
 
@@ -68,6 +74,8 @@ export class GameScene extends Phaser.Scene {
     this.surviveSeconds = level.duration;
     this.worldSize = level.worldSize;
     this.spawnOffset = level.spawnOffset;
+    this.augmentExpMinDrop = level.augmentExpMinDrop;
+    this.augmentExpMaxDrop = level.augmentExpMaxDrop;
 
     this.drawGround();
 
@@ -264,6 +272,13 @@ export class GameScene extends Phaser.Scene {
     enemy.once(Phaser.GameObjects.Events.DESTROY, () => {
       const i = this.enemies.indexOf(enemy);
       if (i !== -1) this.enemies.splice(i, 1);
+
+      // Enemy.destroy() only ever happens via die() (takeDamage reaching 0) today, so DESTROY
+      // reliably means "killed by the player" -- fine to award exp here without a separate
+      // "was this actually a kill" check.
+      const gained = Phaser.Math.Between(this.augmentExpMinDrop, this.augmentExpMaxDrop);
+      this.augmentExp += gained;
+      console.log(`augment exp: +${gained} (total: ${this.augmentExp})`);
     });
   }
 

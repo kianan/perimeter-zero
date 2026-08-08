@@ -1,2 +1,2 @@
-id,stage_name,duration,special_spawn,world_size,spawn_offset
-1,Stage 1,60,,2000,400
+id,stage_name,duration,special_spawn,world_size,spawn_offset,augment_exp_min_drop,augment_exp_max_drop
+1,Stage 1,60,,2000,400,3,8
