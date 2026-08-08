@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Player } from '../player/Player';
 import { Enemy } from '../enemies/Enemy';
 import { Bullet } from '../weapons/Bullet';
+import { Grenade } from '../weapons/Grenade';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
 import { GameEndPopup } from '../ui/GameEndPopup';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
@@ -9,10 +10,16 @@ import { preloadPlayerState, getPlayerState } from '../content/playerState';
 import { preloadLevelData, getLevel, getLevelEnemies } from '../content/levels';
 import { preloadEnemyData, getEnemy } from '../content/enemies';
 import { preloadPlayerLevelData, getPlayerLevel } from '../content/playerLevel';
+import { preloadAugmentData, getAugment, ResolvedAugment } from '../content/augments';
 import { ENEMY_ARCHETYPES } from '../enemies/archetypes';
 
 // No level-select/progression system yet -- always load level 1's data.
 const LEVEL_ID = '1';
+
+// No exp/leveling/choice system yet (brief-augment.md steps 2-5) -- Grenade auto-fires at a
+// fixed id/level, same "hardcode the one that exists" approach as LEVEL_ID above.
+const AUGMENT_ID = '1';
+const AUGMENT_LEVEL = 1;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -30,6 +37,8 @@ export class GameScene extends Phaser.Scene {
   private surviveSeconds = 0;
   private worldSize = 0;
   private spawnOffset = 0;
+  // Resolved from augment_weapon.csv/augment_weapon_scale.csv, see content/augments.ts.
+  private grenade!: ResolvedAugment;
 
   constructor() {
     super('game');
@@ -42,6 +51,7 @@ export class GameScene extends Phaser.Scene {
     preloadLevelData(this);
     preloadEnemyData(this);
     preloadPlayerLevelData(this);
+    preloadAugmentData(this);
   }
 
   create() {
@@ -94,6 +104,13 @@ export class GameScene extends Phaser.Scene {
         callback: () => this.spawnEnemy(spawn.enemyId, spawn.enemyLevel),
       });
     }
+
+    // Grenade is an Augment (GDD §4a): not owned at run start, only obtained via the
+    // exp/level-up/choice-popup loop (brief-augment.md steps 2-5, not built yet). Resolved
+    // here so the data's ready, but NOT auto-fired -- step 1's always-on timer was a
+    // prototype to prove the mechanic, not the real activation trigger. fireGrenade() stays
+    // dormant, ready for the choice popup's "pick Grenade" callback to call it later.
+    this.grenade = getAugment(this, AUGMENT_ID, AUGMENT_LEVEL);
 
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
@@ -180,6 +197,56 @@ export class GameScene extends Phaser.Scene {
         scale: stats.scale,
       }),
     );
+  }
+
+  /** Grenade (brief-augment.md): auto-fires on a timer, no player input or exp/leveling/choice
+   * system yet (steps 2-5) -- just the mechanic itself, stats from augment_weapon.csv/
+   * augment_weapon_scale.csv instead of hardcoded constants. */
+  private fireGrenade() {
+    if (this.roundOver) return;
+    const target = this.pickGrenadeTarget();
+    new Grenade(this, this.player.x, this.player.y, {
+      targetX: target.x,
+      targetY: target.y,
+      radius: this.grenade.radius,
+      travelSpeed: this.grenade.travelSpeed,
+      delayMs: this.grenade.delayMs,
+      visualRadius: this.grenade.visualRadius,
+      color: this.grenade.color,
+      explosionColor: this.grenade.explosionColor,
+      explosionVisualMs: this.grenade.explosionVisualMs,
+      onExplode: (x, y, radius) => this.applyGrenadeDamage(x, y, radius),
+    });
+  }
+
+  /** Targets the nearest enemy's current position, or a random nearby point if none exist --
+   * see brief-augment.md's open "targeting" decision. No aim/input logic needed either way. */
+  private pickGrenadeTarget(): { x: number; y: number } {
+    let nearest: Enemy | null = null;
+    let nearestDist = Infinity;
+    for (const enemy of this.enemies) {
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = enemy;
+      }
+    }
+    if (nearest) return { x: nearest.x, y: nearest.y };
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Phaser.Math.Between(this.grenade.targetMinDist, this.grenade.targetMaxDist);
+    return {
+      x: this.player.x + Math.cos(angle) * dist,
+      y: this.player.y + Math.sin(angle) * dist,
+    };
+  }
+
+  private applyGrenadeDamage(x: number, y: number, radius: number) {
+    for (const enemy of this.enemies) {
+      if (Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y) <= radius) {
+        enemy.takeDamage(this.grenade.damage);
+      }
+    }
   }
 
   // `overlap()` below keeps a reference to these arrays and re-reads them each frame --

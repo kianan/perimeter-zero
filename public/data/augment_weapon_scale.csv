@@ -1,0 +1,2 @@
+augment_id,level,damage,radius,cooldown_ms,delay_ms,explosion_count,travels,homing,travel_speed,target_min_dist,target_max_dist
+1,1,30,120,2500,700,1,1,0,500,100,250

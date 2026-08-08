@@ -1,0 +1,2 @@
+id,name,desc,type,visual_radius,color,explosion_color,explosion_visual_ms
+1,Grenade,Lobbed explosive that deals area damage,aoe_lob,10,0x88cc44,0xff8800,250
