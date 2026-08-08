@@ -311,9 +311,15 @@ export class GameScene extends Phaser.Scene {
       const i = this.enemies.indexOf(enemy);
       if (i !== -1) this.enemies.splice(i, 1);
 
-      // Enemy.destroy() only ever happens via die() (takeDamage reaching 0) today, so DESTROY
-      // reliably means "killed by the player" -- fine to award exp here without a separate
-      // "was this actually a kill" check.
+      // DESTROY also fires when the scene itself tears down (e.g. GameEndPopup's Main Menu
+      // button -> scene.start('menu') destroys every GameObject GameScene owns, including
+      // every remaining enemy) -- not just from a real kill via Enemy.die(). roundOver is
+      // already true by the time that's reachable (Main Menu only exists on GameEndPopup,
+      // which only shows after endRound() sets it), so this guard tells the two cases apart.
+      // Without it, awardAugmentExp() -> logDev() tried to draw onto DevLog's Text object
+      // after it was already destroyed in the same teardown, throwing and hanging the
+      // scene transition mid-flight.
+      if (this.roundOver) return;
       this.awardAugmentExp(Phaser.Math.Between(this.augmentExpMinDrop, this.augmentExpMaxDrop));
     });
   }
