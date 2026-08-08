@@ -10,7 +10,8 @@ export function preloadAugmentData(scene: Phaser.Scene) {
   scene.load.text(AUGMENT_WEAPON_SCALE_CSV_KEY, 'data/augment_weapon_scale.csv');
 }
 
-export interface ResolvedAugment {
+/** From augment_weapon.csv -- static per augment, doesn't vary by tier. */
+export interface AugmentIdentity {
   id: string;
   name: string;
   desc: string;
@@ -19,15 +20,26 @@ export interface ResolvedAugment {
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
+}
+
+/** From augment_weapon_scale.csv -- one node in an augment's tech tree. `parentTierId` is
+ * null for the root tier (what you get on first pick); everything else's parent must be
+ * picked first (see GameScene.buildAugmentChoicePool()). */
+export interface AugmentTier {
+  tierId: string;
+  augmentId: string;
+  parentTierId: string | null;
+  name: string;
+  desc: string;
   damage: number;
   radius: number;
   cooldownMs: number;
   delayMs: number;
   /** Type-A ("aoe_lob") shape columns -- shared shape for grenade/landmine/artillery
-   * strike/orbital strike/homing missile (see brief-augment.md). Only Grenade's behavior
-   * actually branches on these yet (always 1 explosion, always travels, never homes) --
-   * parsed now so future siblings don't need a schema change, not yet read by Grenade.ts's
-   * logic beyond what it already assumes. */
+   * strike/orbital strike/homing missile (see brief-augment.md). Repurposed for
+   * AoeLob-type augments to mean "how many are thrown per activation" (each independently
+   * targeted), not "how many explosions from one throw" -- that original meaning is still
+   * open for a future non-AoeLob sibling that actually needs it. */
   explosionCount: number;
   travels: boolean;
   homing: boolean;
@@ -36,37 +48,69 @@ export interface ResolvedAugment {
   targetMaxDist: number;
 }
 
-/** Joins augment_weapon.csv (identity) + augment_weapon_scale.csv (per-level stats) by
- * id/level. Call after preloadAugmentData()'s load has completed (e.g. from create()). */
-export function getAugment(scene: Phaser.Scene, augmentId: string, level: number): ResolvedAugment {
-  const identities = parseCsv(scene.cache.text.get(AUGMENT_WEAPON_CSV_KEY));
-  const scales = parseCsv(scene.cache.text.get(AUGMENT_WEAPON_SCALE_CSV_KEY));
-
-  const identity = identities.find((row) => row.id === augmentId);
-  const scale = scales.find((row) => row.augment_id === augmentId && Number(row.level) === level);
-
-  if (!identity || !scale) {
-    throw new Error(`No augment data for "${augmentId}" level ${level}`);
-  }
-
+function toIdentity(row: Record<string, string>): AugmentIdentity {
   return {
-    id: identity.id,
-    name: identity.name,
-    desc: identity.desc,
-    type: identity.type,
-    visualRadius: Number(identity.visual_radius),
-    color: Number(identity.color),
-    explosionColor: Number(identity.explosion_color),
-    explosionVisualMs: Number(identity.explosion_visual_ms),
-    damage: Number(scale.damage),
-    radius: Number(scale.radius),
-    cooldownMs: Number(scale.cooldown_ms),
-    delayMs: Number(scale.delay_ms),
-    explosionCount: Number(scale.explosion_count),
-    travels: scale.travels === '1',
-    homing: scale.homing === '1',
-    travelSpeed: Number(scale.travel_speed),
-    targetMinDist: Number(scale.target_min_dist),
-    targetMaxDist: Number(scale.target_max_dist),
+    id: row.id,
+    name: row.name,
+    desc: row.desc,
+    type: row.type,
+    visualRadius: Number(row.visual_radius),
+    color: Number(row.color),
+    explosionColor: Number(row.explosion_color),
+    explosionVisualMs: Number(row.explosion_visual_ms),
   };
+}
+
+function toTier(row: Record<string, string>): AugmentTier {
+  return {
+    tierId: row.tier_id,
+    augmentId: row.augment_id,
+    parentTierId: row.parent_tier_id || null,
+    name: row.name,
+    desc: row.desc,
+    damage: Number(row.damage),
+    radius: Number(row.radius),
+    cooldownMs: Number(row.cooldown_ms),
+    delayMs: Number(row.delay_ms),
+    explosionCount: Number(row.explosion_count),
+    travels: row.travels === '1',
+    homing: row.homing === '1',
+    travelSpeed: Number(row.travel_speed),
+    targetMinDist: Number(row.target_min_dist),
+    targetMaxDist: Number(row.target_max_dist),
+  };
+}
+
+/** Every augment's identity, in augment_weapon.csv's row order -- the full roster to build
+ * the choice pool from (see GameScene.buildAugmentChoicePool()). */
+export function getAllAugmentIdentities(scene: Phaser.Scene): AugmentIdentity[] {
+  return parseCsv(scene.cache.text.get(AUGMENT_WEAPON_CSV_KEY)).map(toIdentity);
+}
+
+export function getAugmentTier(scene: Phaser.Scene, augmentId: string, tierId: string): AugmentTier {
+  const rows = parseCsv(scene.cache.text.get(AUGMENT_WEAPON_SCALE_CSV_KEY));
+  const row = rows.find((r) => r.augment_id === augmentId && r.tier_id === tierId);
+  if (!row) {
+    throw new Error(`No augment tier "${tierId}" for augment "${augmentId}"`);
+  }
+  return toTier(row);
+}
+
+/** The tier you get on first picking this augment (parent_tier_id blank). */
+export function getRootTier(scene: Phaser.Scene, augmentId: string): AugmentTier {
+  const rows = parseCsv(scene.cache.text.get(AUGMENT_WEAPON_SCALE_CSV_KEY));
+  const row = rows.find((r) => r.augment_id === augmentId && !r.parent_tier_id);
+  if (!row) {
+    throw new Error(`No root tier for augment "${augmentId}"`);
+  }
+  return toTier(row);
+}
+
+/** Every tier directly unlocked by picking `parentTierId` -- empty if that tier is a leaf
+ * (maxed out, nothing further to offer for this augment). */
+export function getChildTiers(scene: Phaser.Scene, augmentId: string, parentTierId: string): AugmentTier[] {
+  const rows = parseCsv(scene.cache.text.get(AUGMENT_WEAPON_SCALE_CSV_KEY));
+  return rows
+    .filter((r) => r.augment_id === augmentId && r.parent_tier_id === parentTierId)
+    .map(toTier);
 }

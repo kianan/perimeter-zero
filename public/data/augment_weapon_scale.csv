@@ -1,2 +1,11 @@
-augment_id,level,damage,radius,cooldown_ms,delay_ms,explosion_count,travels,homing,travel_speed,target_min_dist,target_max_dist
-1,1,30,120,2500,700,1,1,0,500,100,250
+tier_id,augment_id,parent_tier_id,name,desc,damage,radius,cooldown_ms,delay_ms,explosion_count,travels,homing,travel_speed,target_min_dist,target_max_dist
+1,1,,Grenade,Lobs one explosive,30,120,2500,700,1,1,0,500,100,250
+2a,1,1,Larger Grenade,Bigger blast radius,30,180,2500,700,1,1,0,500,100,250
+2b,1,1,Twin Grenades,Throws two at once,30,120,2500,700,2,1,0,500,100,250
+3a,1,2a,Bigger Boom,Even more damage,45,180,2500,700,1,1,0,500,100,250
+3b,1,2b,Triple Threat,Throws three at once,30,120,2500,700,3,1,0,500,100,250
+1,2,,Frenade,Fake lobs one explosive,30,120,2500,700,1,1,0,500,100,250
+2a,2,1,Farger Frenade,Fake bigger blast radius,30,180,2500,700,1,1,0,500,100,250
+2b,2,1,Fwin Frenades,Fake throws two at once,30,120,2500,700,2,1,0,500,100,250
+3a,2,2a,Figger Foom,Fake even more damage,45,180,2500,700,1,1,0,500,100,250
+3b,2,2b,Friple Freat,Fake throws three at once,30,120,2500,700,3,1,0,500,100,250
