@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
 import { Button } from '../ui/Button';
-import { Popup } from '../ui/Popup';
+import { GameEndPopup } from '../ui/GameEndPopup';
 
 const REPLAY_DELAY_MS = 600; // pause before replaying a one-shot (death) anim, so it's watchable
 const SCROLL_BOTTOM_PADDING = 40;
@@ -47,22 +47,19 @@ export class KitchenSinkScene extends Phaser.Scene {
     );
     this.cursorY += 96;
 
-    this.section('UI — Popup');
+    this.section('UI — GameEndPopup (extends Popup)');
     this.content.add(
-      new Popup(this, 230, this.cursorY + 160, {
-        message: 'GAME OVER',
-        color: '#ff3b3b',
-        buttons: [
-          { label: 'Restart', onClick: () => console.log('kitchen sink: restart clicked') },
-          { label: 'Main Menu', onClick: () => console.log('kitchen sink: main menu clicked') },
-        ],
+      new GameEndPopup(this, 230, this.cursorY + 160, {
+        won: false,
+        onRestart: () => console.log('kitchen sink: restart clicked'),
+        onMainMenu: () => console.log('kitchen sink: main menu clicked'),
       }),
     );
     this.content.add(
-      new Popup(this, 690, this.cursorY + 160, {
-        message: 'YOU SURVIVED',
-        color: '#4ade80',
-        buttons: [{ label: 'Main Menu', onClick: () => console.log('kitchen sink: main menu clicked') }],
+      new GameEndPopup(this, 690, this.cursorY + 160, {
+        won: true,
+        onRestart: () => console.log('kitchen sink: restart clicked'),
+        onMainMenu: () => console.log('kitchen sink: main menu clicked'),
       }),
     );
     this.cursorY += 340;

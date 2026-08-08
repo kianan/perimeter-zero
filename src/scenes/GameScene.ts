@@ -3,7 +3,7 @@ import { Player } from '../player/Player';
 import { Enemy } from '../enemies/Enemy';
 import { Bullet } from '../weapons/Bullet';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
-import { Popup } from '../ui/Popup';
+import { GameEndPopup } from '../ui/GameEndPopup';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
 import { preloadPlayerState, getPlayerState } from '../content/playerState';
 import { preloadLevelData, getLevel, getLevelEnemies } from '../content/levels';
@@ -134,29 +134,26 @@ export class GameScene extends Phaser.Scene {
   /** Player hit 0 HP. Freeze the world (physics pause -- doesn't stop the player's death
    * anim, which runs off the anim system, not physics) and show a game-over popup. */
   private gameOver() {
-    this.endRound('GAME OVER', '#ff3b3b', false);
+    this.endRound(false);
   }
 
-  /** Survived the timer. Same freeze as gameOver(), different message/buttons. */
+  /** Survived the timer. Same freeze as gameOver(), different popup. */
   private win() {
-    this.endRound('YOU SURVIVED', '#4ade80', true);
+    this.endRound(true);
   }
 
-  private endRound(message: string, color: string, won: boolean) {
+  private endRound(won: boolean) {
     if (this.roundOver) return;
     this.roundOver = true;
     this.player.freeze();
     this.physics.pause();
 
-    const buttons = won
-      ? [{ label: 'Main Menu', onClick: () => this.scene.start('menu') }]
-      : [
-          { label: 'Restart', onClick: () => this.scene.restart() },
-          { label: 'Main Menu', onClick: () => this.scene.start('menu') },
-        ];
-
     const { width, height } = this.cameras.main;
-    new Popup(this, width / 2, height / 2, { message, color, buttons }).setDepth(1000);
+    new GameEndPopup(this, width / 2, height / 2, {
+      won,
+      onRestart: () => this.scene.restart(),
+      onMainMenu: () => this.scene.start('menu'),
+    }).setDepth(1000);
   }
 
   /** Spawns the given enemy archetype/level at a random angle around the player, at a fixed
