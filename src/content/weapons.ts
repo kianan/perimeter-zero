@@ -14,6 +14,12 @@ export interface ResolvedWeapon {
   id: string;
   name: string;
   desc: string;
+  lifespanMs: number;
+  weaponScale: number;
+  weaponYOffset: number;
+  muzzleOffset: number;
+  bulletScale: number;
+  bulletRadius: number;
   damage: number;
   bulletSpeed: number;
   fireRate: number;
@@ -37,6 +43,12 @@ export function getWeapon(scene: Phaser.Scene, weaponId: string, level: number):
     id: identity.id,
     name: identity.name,
     desc: identity.desc,
+    lifespanMs: Number(identity.lifespan_ms),
+    weaponScale: Number(identity.weapon_scale),
+    weaponYOffset: Number(identity.weapon_y_offset),
+    muzzleOffset: Number(identity.muzzle_offset),
+    bulletScale: Number(identity.bullet_scale),
+    bulletRadius: Number(identity.radius),
     damage: Number(scale.damage),
     bulletSpeed: Number(scale.bullet_speed),
     fireRate: Number(scale.fire_rate),

@@ -1,29 +1,28 @@
 import Phaser from 'phaser';
 
-const SCALE = 0.012;   // 2048px source -> ~a small travelling round
-const RADIUS = (2048 * SCALE) / 2;
+export interface BulletConfig {
+  angle: number;
+  speed: number;
+  lifespanMs: number;
+  scale: number;
+  radius: number;
+}
 
 /** A simple travelling projectile: spawns, flies straight at a fixed angle, expires
- * after its lifespan. */
+ * after its lifespan. scale/radius come from weapon.csv (see content/weapons.ts) -- a
+ * different weapon's bullet can look/collide differently. */
 export class Bullet extends Phaser.GameObjects.Sprite {
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    angle: number,
-    speed: number,
-    lifespanMs: number,
-  ) {
+  constructor(scene: Phaser.Scene, x: number, y: number, config: BulletConfig) {
     super(scene, x, y, 'bullet');
-    this.setScale(SCALE);
-    this.setRotation(angle); // orient the glow toward its travel direction
+    this.setScale(config.scale);
+    this.setRotation(config.angle); // orient the glow toward its travel direction
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     const pbody = this.body as Phaser.Physics.Arcade.Body;
-    pbody.setCircle(RADIUS, -RADIUS, -RADIUS);
-    pbody.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+    pbody.setCircle(config.radius, -config.radius, -config.radius);
+    pbody.setVelocity(Math.cos(config.angle) * config.speed, Math.sin(config.angle) * config.speed);
 
-    scene.time.delayedCall(lifespanMs, () => this.destroy());
+    scene.time.delayedCall(config.lifespanMs, () => this.destroy());
   }
 }

@@ -8,6 +8,7 @@ export interface EnemyStats {
   hp: number;
   speed: number;
   damage: number;
+  scale: number;
 }
 
 /**
@@ -38,7 +39,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.speed = stats.speed;
     this.damage = stats.damage;
 
-    this.bodySprite = scene.add.sprite(0, 0, archetype.initialTexture).setScale(archetype.scale);
+    this.bodySprite = scene.add.sprite(0, 0, archetype.initialTexture).setScale(stats.scale);
     this.add(this.bodySprite);
     this.setSize(110, 150);
 

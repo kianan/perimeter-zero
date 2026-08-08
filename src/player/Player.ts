@@ -1,26 +1,30 @@
 import Phaser from 'phaser';
 import { Bullet } from '../weapons/Bullet';
 
-const SPEED = 260;      // px/sec
-const SCALE = 0.16;     // 2048px source frames -> ~a game-sized character
-const WEAPON_SCALE = 0.1;     // 2048px source frames -> ~a game-sized character
-// Weapon frames are canvas-centered (see public/assets/README), same as the body's own
-// canvas-center sits near the top of the head -- drop the weapon to roughly chest/hand
-// height. Estimated from body proportions; nudge if it still reads too high/low.
-const WEAPON_Y_OFFSET = 100;
+const SCALE = 0.16;     // 2048px source frames -> ~a game-sized character -- player's own body,
+                         // not weapon-specific, so stays fixed here rather than in weapon.csv
 
-// Default starter gun stats (GDD weapon spec table: 2 shots/sec). Traveling projectile
-// for now, not hitscan -- easier to see it working; can swap later per weapon.
-const FIRE_INTERVAL_MS = 500;
-const MUZZLE_OFFSET = 45; // px forward from the weapon pivot, along aim -- approximate, nudge to taste
-const BULLET_SPEED = 600;
-const BULLET_LIFESPAN_MS = 1200;
-
-// No tuned values in the GDD yet (meta-progression stats exist, base stats don't) --
-// placeholders, same as the fire/bullet constants above. Nudge once balance matters.
-const MAX_HP = 100;
 const INVULN_MS = 500; // grace window after a hit so touching an enemy doesn't melt HP per-frame
 const HIT_FLASH_MS = 120;
+
+export interface PlayerConfig {
+  // From player_level.csv (see content/playerLevel.ts).
+  maxHp: number;
+  speed: number;
+  // From weapon.csv/weapon_scale.csv, resolved via the equipped weapon in player_state.json
+  // (see content/weapons.ts). Damage isn't here -- GameScene applies it directly in the
+  // bullet-enemy overlap, Player doesn't need to know its own bullet's damage.
+  fireRate: number; // shots/sec
+  bulletSpeed: number;
+  bulletLifespanMs: number;
+  weaponScale: number;
+  weaponYOffset: number;
+  muzzleOffset: number;
+  bulletScale: number;
+  bulletRadius: number;
+  onFire?: (bullet: Bullet) => void;
+  onDeath?: () => void;
+}
 
 /**
  * Layered player rig: body + weapon are two pixel-aligned sprites in one
@@ -35,29 +39,45 @@ export class Player extends Phaser.GameObjects.Container {
   private anim: 'idle' | 'walk' = 'idle';
   private targetPos = new Phaser.Math.Vector2();
   private aimAngle = 0;
-  private hp = MAX_HP;
+
+  private maxHp: number;
+  private speed: number;
+  private bulletSpeed: number;
+  private bulletLifespanMs: number;
+  private muzzleOffset: number;
+  private bulletScale: number;
+  private bulletRadius: number;
+  private onFire?: (bullet: Bullet) => void;
+  private onDeath?: () => void;
+
+  private hp: number;
   private invulnerableUntil = 0;
 
   private dead = false;
   // Set on a win (round ends without the player dying) -- unlike `dead`, no death anim/callback.
   private frozen = false;
 
-  constructor(
-    scene: Phaser.Scene,
-    x: number,
-    y: number,
-    private onFire?: (bullet: Bullet) => void,
-    private onDeath?: () => void,
-  ) {
+  constructor(scene: Phaser.Scene, x: number, y: number, config: PlayerConfig) {
     super(scene, x, y);
+    this.maxHp = config.maxHp;
+    this.speed = config.speed;
+    this.bulletSpeed = config.bulletSpeed;
+    this.bulletLifespanMs = config.bulletLifespanMs;
+    this.muzzleOffset = config.muzzleOffset;
+    this.bulletScale = config.bulletScale;
+    this.bulletRadius = config.bulletRadius;
+    this.onFire = config.onFire;
+    this.onDeath = config.onDeath;
+    this.hp = this.maxHp;
 
     this.bodySprite = scene.add.sprite(0, 0, 'body_idle_0').setScale(SCALE);
     // weapon frames are pre-shifted (see public/assets/README) so the grip sits at each
     // frame's canvas center -- default origin (0.5, 0.5) is correct. Position dropped to
-    // roughly hand height (see WEAPON_Y_OFFSET); the grip stays the rotation pivot either way.
+    // roughly hand height (weaponYOffset, from weapon.csv); the grip stays the rotation
+    // pivot either way.
     this.weaponSprite = scene.add
-      .sprite(0, WEAPON_Y_OFFSET, 'weapon_idle_0')
-      .setScale(WEAPON_SCALE);
+      .sprite(0, config.weaponYOffset, 'weapon_idle_0')
+      .setScale(config.weaponScale);
     this.add([this.bodySprite, this.weaponSprite]);
     this.setSize(110, 150); // physics body footprint
 
@@ -70,7 +90,8 @@ export class Player extends Phaser.GameObjects.Container {
     this.weaponSprite.play('weapon_idle');
 
     this.scene.events.on('update', this.update, this);
-    scene.time.addEvent({ delay: FIRE_INTERVAL_MS, loop: true, callback: () => this.fire() });
+    const fireIntervalMs = 1000 / config.fireRate;
+    scene.time.addEvent({ delay: fireIntervalMs, loop: true, callback: () => this.fire() });
   }
 
   /** Stops shooting/moving/aiming without playing the death anim -- for a win, not a loss. */
@@ -87,9 +108,15 @@ export class Player extends Phaser.GameObjects.Container {
     const pivotX = this.x + this.weaponSprite.x;
     const pivotY = this.y + this.weaponSprite.y;
     const rot = this.weaponSprite.rotation;
-    const muzzleX = pivotX + Math.cos(rot) * MUZZLE_OFFSET;
-    const muzzleY = pivotY + Math.sin(rot) * MUZZLE_OFFSET;
-    const bullet = new Bullet(this.scene, muzzleX, muzzleY, rot, BULLET_SPEED, BULLET_LIFESPAN_MS);
+    const muzzleX = pivotX + Math.cos(rot) * this.muzzleOffset;
+    const muzzleY = pivotY + Math.sin(rot) * this.muzzleOffset;
+    const bullet = new Bullet(this.scene, muzzleX, muzzleY, {
+      angle: rot,
+      speed: this.bulletSpeed,
+      lifespanMs: this.bulletLifespanMs,
+      scale: this.bulletScale,
+      radius: this.bulletRadius,
+    });
     this.onFire?.(bullet);
   }
 
@@ -98,7 +125,7 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   getMaxHp() {
-    return MAX_HP;
+    return this.maxHp;
   }
 
   /** Contact damage from an enemy. Ignored while within the post-hit invuln window,
@@ -171,7 +198,7 @@ export class Player extends Phaser.GameObjects.Container {
     }
     const v = new Phaser.Math.Vector2(input.x, input.y);
     if (v.lengthSq() > 0) {
-      v.normalize().scale(SPEED); // normalize -> no faster diagonals
+      v.normalize().scale(this.speed); // normalize -> no faster diagonals
       this.setAnim('walk');
       if (input.x !== 0) {
         const flip = input.x < 0;

@@ -1,2 +1,2 @@
-id,name,desc,type,asset
-starter_gun,Starter Gun,The sidearm you started with,main,characters/player/weapon
+id,name,desc,type,asset,lifespan_ms,weapon_scale,weapon_y_offset,muzzle_offset,bullet_scale,radius
+1,Starter Gun,The sidearm you started with,main,characters/player/weapon,1200,0.1,100,45,0.012,12.288

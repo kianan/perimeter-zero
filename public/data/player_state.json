@@ -1,4 +1,5 @@
 {
   "levelCompleted": 0,
-  "mainWeapon": { "id": "starter_gun", "level": 1 }
+  "mainWeapon": { "id": "1", "level": 1 },
+  "playerLevel": 1
 }

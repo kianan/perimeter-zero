@@ -15,11 +15,14 @@ export interface ResolvedLevel {
   stageName: string;
   duration: number;
   specialSpawn: string;
+  worldSize: number;
+  spawnOffset: number;
 }
 
 export interface LevelEnemySpawn {
   enemyId: string;
   spawnRate: number;
+  enemyLevel: number;
 }
 
 /** Call after preloadLevelData()'s load has completed (e.g. from create()). */
@@ -36,14 +39,21 @@ export function getLevel(scene: Phaser.Scene, levelId: string): ResolvedLevel {
     stageName: row.stage_name,
     duration: Number(row.duration),
     specialSpawn: row.special_spawn,
+    worldSize: Number(row.world_size),
+    spawnOffset: Number(row.spawn_offset),
   };
 }
 
-/** Every enemy_id/spawn_rate row for this level -- level_enemies.csv is a many-to-many join,
- * so a level can list multiple enemy types at different rates (only one exists today). */
+/** Every enemy_id/spawn_rate/enemy_level row for this level -- level_enemies.csv is a
+ * many-to-many join, so a level can list multiple enemy types at different rates and
+ * (independently) different enemy_scale.csv tiers. */
 export function getLevelEnemies(scene: Phaser.Scene, levelId: string): LevelEnemySpawn[] {
   const rows = parseCsv(scene.cache.text.get(LEVEL_ENEMIES_CSV_KEY));
   return rows
     .filter((r) => r.level_id === levelId)
-    .map((r) => ({ enemyId: r.enemy_id, spawnRate: Number(r.spawn_rate) }));
+    .map((r) => ({
+      enemyId: r.enemy_id,
+      spawnRate: Number(r.spawn_rate),
+      enemyLevel: Number(r.enemy_level),
+    }));
 }

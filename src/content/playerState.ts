@@ -5,6 +5,7 @@ const PLAYER_STATE_KEY = 'data_player_state';
 export interface PlayerState {
   levelCompleted: number;
   mainWeapon: { id: string; level: number };
+  playerLevel: number;
 }
 
 /** Call from a scene's preload(). Hardcoded stand-in for the real save state (localStorage,

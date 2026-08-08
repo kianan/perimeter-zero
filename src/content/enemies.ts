@@ -17,6 +17,7 @@ export interface ResolvedEnemy {
   type: string;
   asset: string;
   weapon: string;
+  scale: number;
   damage: number;
   health: number;
   speed: number;
@@ -42,6 +43,7 @@ export function getEnemy(scene: Phaser.Scene, enemyId: string, level: number): R
     type: identity.type,
     asset: identity.asset,
     weapon: identity.weapon,
+    scale: Number(identity.scale),
     damage: Number(scale.damage),
     health: Number(scale.health),
     speed: Number(scale.speed),
