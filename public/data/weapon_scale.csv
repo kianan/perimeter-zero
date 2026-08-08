@@ -1,0 +1,2 @@
+weapon_id,level,cost,damage,bullet_speed,fire_rate
+starter_gun,1,0,10,600,2

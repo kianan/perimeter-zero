@@ -1,29 +1,44 @@
 import Phaser from 'phaser';
+import { EnemyArchetype } from './archetypes';
 
-const SPEED = 110; // px/sec -- slower than the player (260) so it's escapable
-const SCALE = 0.16; // same source-frame size and scale as the player body
-
-// No tuned values in the GDD yet -- placeholder, same caveat as Player's MAX_HP/etc.
-// 2 hits at the starter gun's 10 dmg/shot before it dies, so a hit actually reads as a hit.
-const MAX_HP = 20;
 const HIT_FLASH_MS = 120;
+const DEATH_FADE_MS = 300; // used when an archetype has no death anim (see archetypes.ts)
+
+export interface EnemyStats {
+  hp: number;
+  speed: number;
+  damage: number;
+}
 
 /**
- * Rusher archetype: no ranged behavior, just walks straight at the player.
- * Single body sprite (no weapon layer). Simplest enemy AI, first one built
- * (see workspace/onslaught/plan.md step 2).
+ * Archetype-agnostic enemy: visuals (animation keys) come from EnemyArchetype, stats (hp,
+ * speed, contact damage) come from enemy.csv/enemy_scale.csv via EnemyStats (see
+ * content/enemies.ts and GameScene.spawnEnemy()). Adding a new archetype means a new CSV row
+ * + an archetypes.ts entry, not a new Enemy subclass -- see workspace/onslaught/plan.md.
  */
 export class Enemy extends Phaser.GameObjects.Container {
   private bodySprite: Phaser.GameObjects.Sprite;
   private pbody!: Phaser.Physics.Arcade.Body;
-  private anim: 'idle' | 'walk' = 'idle';
+  private anim: 'idle' | 'move' = 'idle';
   private dying = false;
-  private hp = MAX_HP;
+  private hp: number;
+  private speed: number;
+  /** Contact damage dealt to the player on touch -- read by GameScene's player-enemy overlap. */
+  readonly damage: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    private archetype: EnemyArchetype,
+    stats: EnemyStats,
+  ) {
     super(scene, x, y);
+    this.hp = stats.hp;
+    this.speed = stats.speed;
+    this.damage = stats.damage;
 
-    this.bodySprite = scene.add.sprite(0, 0, 'rusher_idle_0').setScale(SCALE);
+    this.bodySprite = scene.add.sprite(0, 0, archetype.initialTexture).setScale(archetype.scale);
     this.add(this.bodySprite);
     this.setSize(110, 150);
 
@@ -31,7 +46,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     scene.physics.add.existing(this);
     this.pbody = this.body as Phaser.Physics.Arcade.Body;
 
-    this.bodySprite.play('rusher_idle');
+    this.bodySprite.play(archetype.idleAnim);
   }
 
   /** Deducts hp and flashes red; dies only once hp reaches 0. */
@@ -48,15 +63,26 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.scene.time.delayedCall(HIT_FLASH_MS, () => this.bodySprite.clearTint());
   }
 
-  /** Plays the death anim, then destroys the container once it finishes. */
+  /** Plays the death anim if the archetype has one, otherwise fades out -- either way,
+   * destroys the container once it finishes. */
   private die() {
     if (this.dying) return;
     this.dying = true;
     this.pbody.setVelocity(0, 0);
     this.pbody.enable = false;
     this.bodySprite.clearTint();
-    this.bodySprite.once('animationcomplete', () => this.destroy());
-    this.bodySprite.play('rusher_death');
+
+    if (this.archetype.deathAnim) {
+      this.bodySprite.once('animationcomplete', () => this.destroy());
+      this.bodySprite.play(this.archetype.deathAnim);
+    } else {
+      this.scene.tweens.add({
+        targets: this.bodySprite,
+        alpha: 0,
+        duration: DEATH_FADE_MS,
+        onComplete: () => this.destroy(),
+      });
+    }
   }
 
   /** Steers straight toward (targetX, targetY) -- e.g. the player's position. */
@@ -67,19 +93,19 @@ export class Enemy extends Phaser.GameObjects.Container {
     const dist = Math.hypot(dx, dy);
 
     if (dist > 4) {
-      const v = new Phaser.Math.Vector2(dx, dy).normalize().scale(SPEED);
+      const v = new Phaser.Math.Vector2(dx, dy).normalize().scale(this.speed);
       this.pbody.setVelocity(v.x, v.y);
       this.bodySprite.setFlipX(dx < 0);
-      this.setAnim('walk');
+      this.setAnim('move');
     } else {
       this.pbody.setVelocity(0, 0);
       this.setAnim('idle');
     }
   }
 
-  private setAnim(anim: 'idle' | 'walk') {
+  private setAnim(anim: 'idle' | 'move') {
     if (this.anim === anim) return;
     this.anim = anim;
-    this.bodySprite.play(`rusher_${anim}`);
+    this.bodySprite.play(anim === 'idle' ? this.archetype.idleAnim : this.archetype.moveAnim);
   }
 }

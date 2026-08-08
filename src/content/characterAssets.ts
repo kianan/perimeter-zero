@@ -5,10 +5,11 @@ export const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 export const LAYERS = ['body', 'weapon'] as const;
 export const RUSHER_DEATH_FRAMES = 10;
 export const PLAYER_DEATH_FRAMES = 10;
+export const SWARM_FLY_FRAMES = 6; // enemies/swarm/fly_0..5 -- one anim, no idle/walk/death split
 
-/** Loads every player (body/weapon) and rusher frame, plus the bullet sprite. Shared between
- * GameScene and KitchenSinkScene so both use the exact same texture keys/anims -- one source
- * of truth instead of two copies drifting apart. */
+/** Loads every player (body/weapon), rusher, and swarm frame, plus the bullet sprite. Shared
+ * between GameScene and KitchenSinkScene so both use the exact same texture keys/anims -- one
+ * source of truth instead of two copies drifting apart. */
 export function preloadCharacterAssets(scene: Phaser.Scene) {
   for (const layer of LAYERS) {
     for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
@@ -31,6 +32,10 @@ export function preloadCharacterAssets(scene: Phaser.Scene) {
   }
   for (let i = 0; i < RUSHER_DEATH_FRAMES; i++) {
     scene.load.image(`rusher_death_${i}`, `assets/enemies/rusher/death_${i}.png`);
+  }
+
+  for (let i = 0; i < SWARM_FLY_FRAMES; i++) {
+    scene.load.image(`swarm_fly_${i}`, `assets/enemies/swarm/fly_${i}.png`);
   }
 
   scene.load.image('bullet', 'assets/weapons/projectiles/bullet.png');
@@ -68,5 +73,12 @@ export function createCharacterAnims(scene: Phaser.Scene) {
     frames: Array.from({ length: RUSHER_DEATH_FRAMES }, (_, i) => ({ key: `rusher_death_${i}` })),
     frameRate: 15,
     repeat: 0,
+  });
+
+  scene.anims.create({
+    key: 'swarm_fly',
+    frames: Array.from({ length: SWARM_FLY_FRAMES }, (_, i) => ({ key: `swarm_fly_${i}` })),
+    frameRate: 12,
+    repeat: -1,
   });
 }

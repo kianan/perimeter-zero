@@ -1,0 +1,3 @@
+id,name,desc,type,asset,weapon
+rusher,Rusher,Walks straight at the player,melee,enemies/rusher,
+swarm,Swarm,Flies in fast and erratic,swarm,enemies/swarm,

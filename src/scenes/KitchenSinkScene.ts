@@ -84,6 +84,12 @@ export class KitchenSinkScene extends Phaser.Scene {
     this.spriteDemo(460, 'rusher_death_0', 'rusher_death', 0.09, 'death', true);
     this.cursorY += 200;
 
+    this.section('Enemy — Swarm');
+    // Only one anim exists (fly_0..5) -- no idle/walk/death split, no death art (see
+    // enemies/archetypes.ts: die() fades out instead of playing a death anim).
+    this.spriteDemo(100, 'swarm_fly_0', 'swarm_fly', 0.07, 'fly (idle + move + death fallback)');
+    this.cursorY += 200;
+
     this.section('Weapons — Bullet');
     // Shown larger than its actual in-game scale (0.012, ~24px) so it's visible here.
     this.spriteDemo(100, 'bullet', null, 0.04, 'actual in-game size is much smaller');
