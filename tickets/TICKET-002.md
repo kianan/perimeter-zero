@@ -2,7 +2,7 @@
 id: TICKET-002
 title: Load tank placeholder sprite frames in characterAssets.ts
 increment: 2
-status: in_progress
+status: done
 acceptance:
 - preloadCharacterAssets() in characterAssets.ts loads new texture keys prefixed `tank_`
   (e.g. tank_idle_0..N, tank_walk_0..N) via scene.load.image, following the same loop
