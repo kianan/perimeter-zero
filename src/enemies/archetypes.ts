@@ -25,9 +25,11 @@ export const ENEMY_ARCHETYPES: Record<string, EnemyArchetype> = {
   },
   tank: {
     // No tank art of its own yet -- these keys point at rusher's PNG frames reused under a
-    // tank_-prefixed key (see characterAssets.ts's preload/createCharacterAnims), same
-    // placeholder-art approach the plan calls out. Swap to real tank_ frames later with no
-    // change needed here.
+    // tank_-prefixed key. characterAssets.ts's preloadCharacterAssets() loads
+    // tank_idle_0..5/tank_walk_0..7/tank_death_0..9 from assets/enemies/rusher/*.png, and
+    // createCharacterAnims() registers the tank_idle/tank_walk/tank_death anim keys
+    // referenced below -- see that file's diff. Same placeholder-art approach the plan calls
+    // out. Swap to real tank_ frames later with no change needed here.
     initialTexture: 'tank_idle_0',
     idleAnim: 'tank_idle',
     moveAnim: 'tank_walk',
