@@ -1,3 +1,4 @@
 id,name,desc,type,asset,weapon,scale
 rusher,Rusher,Walks straight at the player,melee,enemies/rusher,,0.16
 swarm,Swarm,Flies in fast and erratic,swarm,enemies/swarm,,0.12
+tank,Tank,Lumbering bruiser that shrugs off damage,melee,enemies/tank,,0.20
