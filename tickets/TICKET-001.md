@@ -2,7 +2,7 @@
 id: TICKET-001
 title: Add tank content data (enemy.csv + enemy_scale.csv)
 increment: 1
-status: in_progress
+status: done
 acceptance:
 - public/data/enemy.csv has a new row with id=tank containing all 7 columns matching
   the header (id,name,desc,type,asset,weapon,scale), asset set to 'enemies/tank',
