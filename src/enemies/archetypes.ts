@@ -23,4 +23,14 @@ export const ENEMY_ARCHETYPES: Record<string, EnemyArchetype> = {
     idleAnim: 'swarm_fly',
     moveAnim: 'swarm_fly',
   },
+  tank: {
+    // No tank art of its own yet -- these keys point at rusher's PNG frames reused under a
+    // tank_-prefixed key (see characterAssets.ts's preload/createCharacterAnims), same
+    // placeholder-art approach the plan calls out. Swap to real tank_ frames later with no
+    // change needed here.
+    initialTexture: 'tank_idle_0',
+    idleAnim: 'tank_idle',
+    moveAnim: 'tank_walk',
+    deathAnim: 'tank_death',
+  },
 };
