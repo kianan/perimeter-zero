@@ -2,7 +2,7 @@
 id: TICKET-003
 title: Register tank archetype using the shared chase pattern
 increment: 3
-status: in_progress
+status: done
 acceptance:
 - ENEMY_ARCHETYPES in archetypes.ts has a `tank` key whose value only sets existing
   EnemyArchetype fields (initialTexture, idleAnim, moveAnim, optional deathAnim);
