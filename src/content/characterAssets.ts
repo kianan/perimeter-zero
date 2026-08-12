@@ -4,12 +4,15 @@ import Phaser from 'phaser';
 export const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 export const LAYERS = ['body', 'weapon'] as const;
 export const RUSHER_DEATH_FRAMES = 10;
+// tank has no art of its own yet (see plan.md) -- its idle/walk/death loads below point at
+// rusher's existing PNG frame files as a placeholder sprite, same frame count as rusher.
+export const TANK_DEATH_FRAMES = 10;
 export const PLAYER_DEATH_FRAMES = 10;
 export const SWARM_FLY_FRAMES = 6; // enemies/swarm/fly_0..5 -- one anim, no idle/walk/death split
 
-/** Loads every player (body/weapon), rusher, and swarm frame, plus the bullet sprite. Shared
- * between GameScene and KitchenSinkScene so both use the exact same texture keys/anims -- one
- * source of truth instead of two copies drifting apart. */
+/** Loads every player (body/weapon), rusher, swarm, and tank frame, plus the bullet sprite.
+ * Shared between GameScene and KitchenSinkScene so both use the exact same texture keys/anims
+ * -- one source of truth instead of two copies drifting apart. */
 export function preloadCharacterAssets(scene: Phaser.Scene) {
   for (const layer of LAYERS) {
     for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
@@ -36,6 +39,18 @@ export function preloadCharacterAssets(scene: Phaser.Scene) {
 
   for (let i = 0; i < SWARM_FLY_FRAMES; i++) {
     scene.load.image(`swarm_fly_${i}`, `assets/enemies/swarm/fly_${i}.png`);
+  }
+
+  // No tank art exists yet -- reuse rusher's PNG frame files as tank's placeholder sprite
+  // (plan.md explicitly allows this). Texture keys are tank_-prefixed so archetypes.ts can
+  // reference them like any other enemy's own art once real tank art lands.
+  for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
+    for (let i = 0; i < ANIMS[anim]; i++) {
+      scene.load.image(`tank_${anim}_${i}`, `assets/enemies/rusher/${anim}_${i}.png`);
+    }
+  }
+  for (let i = 0; i < TANK_DEATH_FRAMES; i++) {
+    scene.load.image(`tank_death_${i}`, `assets/enemies/rusher/death_${i}.png`);
   }
 
   scene.load.image('bullet', 'assets/weapons/projectiles/bullet.png');
@@ -88,5 +103,20 @@ export function createCharacterAnims(scene: Phaser.Scene) {
     frames: Array.from({ length: SWARM_FLY_FRAMES }, (_, i) => ({ key: `swarm_fly_${i}` })),
     frameRate: 12,
     repeat: -1,
+  });
+
+  for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
+    scene.anims.create({
+      key: `tank_${anim}`,
+      frames: Array.from({ length: ANIMS[anim] }, (_, i) => ({ key: `tank_${anim}_${i}` })),
+      frameRate: anim === 'walk' ? 12 : 8,
+      repeat: -1,
+    });
+  }
+  scene.anims.create({
+    key: 'tank_death',
+    frames: Array.from({ length: TANK_DEATH_FRAMES }, (_, i) => ({ key: `tank_death_${i}` })),
+    frameRate: 15,
+    repeat: 0,
   });
 }
