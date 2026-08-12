@@ -41,8 +41,16 @@ export function preloadCharacterAssets(scene: Phaser.Scene) {
   scene.load.image('bullet', 'assets/weapons/projectiles/bullet.png');
 }
 
-/** Creates every anim key used by Player/Enemy. Must run after the matching preload. */
+/** Creates every anim key used by Player/Enemy. Must run after the matching preload.
+ * Animations are global to the whole game, not per-scene (Phaser's own AnimationManager
+ * docs: "Keys created in one scene can be used from any other Scene... They are not Scene
+ * specific") -- they persist across scene restarts/re-entries, so re-running this on a
+ * second GameScene.create() would try to recreate ~30 already-registered keys. Phaser
+ * handles that non-fatally (warns and returns the existing animation), but it's needless
+ * console noise every time -- skip the whole batch if it's already done. */
 export function createCharacterAnims(scene: Phaser.Scene) {
+  if (scene.anims.exists('body_idle')) return;
+
   for (const layer of LAYERS) {
     for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
       scene.anims.create({
