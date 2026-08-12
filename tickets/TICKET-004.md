@@ -2,7 +2,7 @@
 id: TICKET-004
 title: Spawn tank in Stage 1
 increment: 4
-status: in_progress
+status: done
 acceptance:
 - 'public/data/level_enemies.csv has a new row: level_id=1, enemy_id=tank, a numeric
   spawn_rate, enemy_level=1.'
