@@ -1,5 +1,5 @@
 {
-  "status": "building",
+  "status": "done",
   "brief": "brief-add-tank-enemy-archetype",
   "increments": [
     {
@@ -44,5 +44,5 @@
       ]
     }
   ],
-  "current": 3
+  "current": 4
 }
