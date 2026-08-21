@@ -28,4 +28,8 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: scenes,
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Dev-only state hook for the adversarial QA agent (ai_studio/adversarial_qa/) -- same
+// import.meta.env.DEV gate DevLog already uses. No production impact.
+if (import.meta.env.DEV) (window as any).__qaGame = game;
