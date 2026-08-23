@@ -2,17 +2,17 @@
 id: TICKET-011
 title: Wire levelCompleted read/write in player state
 increment: 11
-status: in_progress
+status: done
 acceptance:
-- content/playerState.ts exports a function that reads levelCompleted from
-  localStorage if present, falling back to player_state.json's baked-in value
-  (currently 0) if localStorage has nothing set yet
+- content/playerState.ts exports a function that reads levelCompleted from localStorage
+  if present, falling back to player_state.json's baked-in value (currently 0) if
+  localStorage has nothing set yet
 - content/playerState.ts exports a function that writes an updated levelCompleted
   value to localStorage
-- Calling the write function then calling the read function returns the newly
-  written value, not the player_state.json fallback
-- No other fields read from player_state.json (mainWeapon, playerLevel) change
-  behavior — they keep reading from the static JSON exactly as before
+- Calling the write function then calling the read function returns the newly written
+  value, not the player_state.json fallback
+- "No other fields read from player_state.json (mainWeapon, playerLevel) change behavior\
+  \ \u2014 they keep reading from the static JSON exactly as before"
 - tsc --noEmit passes
 ---
 
