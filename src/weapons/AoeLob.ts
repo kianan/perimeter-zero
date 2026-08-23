@@ -12,7 +12,14 @@ export interface AoeLobConfig {
   /** AoE damage radius -- also the explosion visual's size. */
   radius: number;
   travelSpeed: number;
-  delayMs: number; // sits after arriving, before it explodes (augment_weapon_scale.csv)
+  delayMs: number; // sits after arriving (or after being placed, if !travels), before exploding
+  /** Type-A shape column (augment_weapon_scale.csv's `travels`). True = tweens to
+   * targetX/targetY like Grenade. False = stays exactly where thrown, on a timed fuse --
+   * Land Mine's shape ("set it, forget it, get reminded when it goes off", GDD_lore.md §4).
+   * Previously always true in practice: this field didn't exist and the constructor tweened
+   * unconditionally, so augment_weapon_scale.csv's own `travels` column was silently ignored
+   * even though it was already being parsed (content/augments.ts's AugmentTier.travels). */
+  travels: boolean;
   visualRadius: number;
   color: number;
   explosionColor: number;
@@ -24,17 +31,22 @@ export interface AoeLobConfig {
 }
 
 /** Type-A Augment mechanic ("aoe_lob" in augment_weapon.csv's `type` column -- see
- * brief-augment.md): travels to a target point, sits with a visible fuse delay, then
- * explodes, dealing damage in a radius. Shared engine for every AoeLob-type Augment (Grenade,
- * Frenade, and eventually landmine/artillery strike/orbital strike/homing missile) -- was
- * called Grenade until a second AoeLob augment made that name dishonest. Placeholder visuals
- * only (Phaser Shape circles, no new art). Stats come from augment_weapon.csv/
- * augment_weapon_scale.csv via content/augments.ts -- this class has no hardcoded numbers
- * of its own. */
+ * brief-augment.md): either travels to a target point or is placed immediately (see
+ * `config.travels`), sits with a fuse delay, then explodes, dealing damage in a radius.
+ * Shared engine for every AoeLob-type Augment (Grenade, Frenade, Land Mine, and eventually
+ * artillery strike/orbital strike/homing missile) -- was called Grenade until a second AoeLob
+ * augment made that name dishonest. Placeholder visuals only (Phaser Shape circles, no new
+ * art). Stats come from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts --
+ * this class has no hardcoded numbers of its own. */
 export class AoeLob extends Phaser.GameObjects.Arc {
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
     super(scene, x, y, config.visualRadius, 0, 360, false, config.color);
     scene.add.existing(this);
+
+    if (!config.travels) {
+      scene.time.delayedCall(config.delayMs, () => this.explode());
+      return;
+    }
 
     const travelDist = Phaser.Math.Distance.Between(x, y, config.targetX, config.targetY);
     const travelMs = Math.max(100, (travelDist / config.travelSpeed) * 1000);

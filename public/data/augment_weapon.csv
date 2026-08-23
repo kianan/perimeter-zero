@@ -1,3 +1,4 @@
 id,name,desc,type,visual_radius,color,explosion_color,explosion_visual_ms
 1,Grenade,Lobbed explosive that deals area damage,aoe_lob,10,0x88cc44,0xff8800,250
 2,Frenade,Mock augment for testing the multi-augment choice pool -- identical to Grenade,aoe_lob,10,0x88cc44,0xff8800,250
+3,Land Mine,Placed explosive that waits before it detonates,aoe_lob,10,0x996633,0xff8800,250

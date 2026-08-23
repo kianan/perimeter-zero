@@ -251,6 +251,7 @@ export class GameScene extends Phaser.Scene {
         radius: tier.radius,
         travelSpeed: tier.travelSpeed,
         delayMs: tier.delayMs,
+        travels: tier.travels,
         visualRadius: identity.visualRadius,
         color: identity.color,
         explosionColor: identity.explosionColor,
