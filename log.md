@@ -45,3 +45,4 @@
   (was silent auto-advance), removed the Frenade mock augment (no longer needed now that
   Land Mine proves the multi-augment pool). TICKET-013 marked done — verified live.
 - (manual) run/brief-10-levels merged to main
+- `16:59:32` ingested brief 'brief-2-enemies'
