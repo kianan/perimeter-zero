@@ -48,3 +48,4 @@
 - `16:59:32` ingested brief 'brief-2-enemies'
 - `17:00:25` planned 6 increments
 - `17:02:48` TICKET-014 review (attempt 1): ACCEPT
+- `17:03:33` TICKET-015 pushback: The ticket says to add shooter/charger rows to enemy.csv and a weapon id `2` row to weapon.csv/weapon_scale.csv "matching the brief's exact values," but the brief document (referenced elsewhere as e.g. `brief-shooter-charger.md`) isn't included in my file set or the ticket text — only the `enemy_scale.csv` rows are given verbatim. Can you paste the brief's exact rows for `enemy.csv` (shooter/charger: name, desc, type, asset, weapon, scale, preferred_range, dash_burst_mult, dash_burst_ms, dash_cooldown_ms) and for `weapon.csv`/`weapon_scale.csv`'s new id-`2` row?

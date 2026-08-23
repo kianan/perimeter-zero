@@ -21,6 +21,13 @@ export interface ResolvedEnemy {
   damage: number;
   health: number;
   speed: number;
+  // From enemy.csv -- shooter/charger-only columns, still unused by Enemy/GameScene (see
+  // TICKET-015). Existing rusher/swarm/tank rows default to 0/blank so every archetype's
+  // ResolvedEnemy shares this same shape rather than these fields being optional.
+  preferredRange: number;
+  dashBurstMult: number;
+  dashBurstMs: number;
+  dashCooldownMs: number;
 }
 
 /** Joins enemy.csv (identity) + enemy_scale.csv (per-level stats) by id/level. Call after
@@ -47,5 +54,9 @@ export function getEnemy(scene: Phaser.Scene, enemyId: string, level: number): R
     damage: Number(scale.damage),
     health: Number(scale.health),
     speed: Number(scale.speed),
+    preferredRange: Number(identity.preferred_range),
+    dashBurstMult: Number(identity.dash_burst_mult),
+    dashBurstMs: Number(identity.dash_burst_ms),
+    dashCooldownMs: Number(identity.dash_cooldown_ms),
   };
 }
