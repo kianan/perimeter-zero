@@ -1,48 +1,42 @@
 {
   "status": "done",
-  "brief": "brief-add-tank-enemy-archetype",
+  "brief": "brief-pause-bug",
   "increments": [
     {
-      "title": "Add tank content data (enemy.csv + enemy_scale.csv)",
-      "description": "Add a `tank` identity row to public/data/enemy.csv and a matching level=1 stats row to public/data/enemy_scale.csv, giving Tank distinctly higher HP and lower move speed than both rusher and swarm per the brief's 'lumbering bruiser' vibe. Pure data change -- no code touched yet; archetype registration and spawning come in later increments.",
+      "title": "Add Player paused state and gate fire()",
+      "description": "In Player.ts, add a new `private paused = false` field (separate from the existing `frozen` field) and two public methods, `pause()` and `resume()`, that set/clear it. Update fire()'s early-return guard to include the new flag.",
       "acceptance": [
-        "public/data/enemy.csv has a new row with id=tank containing all 7 columns matching the header (id,name,desc,type,asset,weapon,scale), asset set to 'enemies/tank', and a numeric scale value.",
-        "public/data/enemy_scale.csv has a new row with enemy_id=tank, level=1, and numeric damage/health/speed values.",
-        "tank's health value is strictly greater than both rusher's (20) and swarm's (10).",
-        "tank's speed value is strictly less than both rusher's (110) and swarm's (150).",
-        "No files other than public/data/enemy.csv and public/data/enemy_scale.csv are modified."
+        "Player.ts declares a `private paused = false` field distinct from `frozen`",
+        "Player.ts exposes `pause(): void` that sets `this.paused = true` and `resume(): void` that sets `this.paused = false`",
+        "fire()'s early-return condition reads `if (this.dead || this.frozen || this.paused) return;`",
+        "move() is unchanged (no reference to the new `paused` field)",
+        "`tsc --noEmit` passes"
       ]
     },
     {
-      "title": "Load tank placeholder sprite frames in characterAssets.ts",
-      "description": "Extend src/content/characterAssets.ts to preload and register Phaser animations for a `tank_`-prefixed texture family, following the exact loop/anim-creation structure already used for rusher. No tank art exists and public/assets/** is out of scope for this change, so reuse the existing rusher PNG frame files as tank's placeholder sprite (the brief explicitly allows reusing a placeholder sprite when no new art exists) -- add no new binary files.",
+      "title": "Wire Player pause/resume into GameScene's augment-choice pause",
+      "description": "In GameScene.ts, call `this.player.pause()` inside openAugmentChoice() alongside the existing `this.physics.pause()`, and call `this.player.resume()` inside resumeAfterAugmentChoice() alongside the existing `this.physics.resume()`.",
       "acceptance": [
-        "preloadCharacterAssets() in characterAssets.ts loads new texture keys prefixed `tank_` (e.g. tank_idle_0..N, tank_walk_0..N) via scene.load.image, following the same loop structure as the existing rusher block.",
-        "createCharacterAnims() defines `tank_idle` and `tank_walk` Phaser animations (deathAnim optional) built from the tank_-prefixed keys, following the same anims.create pattern used for rusher.",
-        "The image source path(s) referenced by the new tank_-prefixed loads point at PNG files that already exist in the repo (e.g. assets/enemies/rusher/*.png) -- no files are added, removed, or modified under public/assets/**.",
-        "This increment's diff touches only src/content/characterAssets.ts."
+        "openAugmentChoice() (GameScene.ts:387) calls `this.player.pause()` in addition to `this.physics.pause()`",
+        "resumeAfterAugmentChoice() (GameScene.ts:417) calls `this.player.resume()` in addition to `this.physics.resume()`",
+        "No other lines in GameScene.ts changed; Bullet.ts and AoeLob.ts are untouched",
+        "`tsc --noEmit` passes"
       ]
     },
     {
-      "title": "Register tank archetype using the shared chase pattern",
-      "description": "Add a `tank` entry to ENEMY_ARCHETYPES in src/enemies/archetypes.ts, referencing the tank_ texture/anim keys from the previous increment, using the exact same object shape already used for rusher/swarm. Tank enemies must use Enemy.ts's existing chase() verbatim -- no new AI, movement, or rendering code.",
+      "title": "Verify fix against original repro and full regression suite",
+      "description": "Manually/agent-drive the original repro via window.__qaGame (main.ts's dev hook): open the Augment Choice popup, wait ~4s with no input, and confirm no new bullets are created while paused === true. Also confirm bullets fired before the popup opened freeze in place during the pause and resume from their pre-pause position (not a stale-position burst). Then run adversarial_qa/qa_agent.py's full check suite to confirm the other 8 checks (boundary clamping, idle-stuck, edge-fire, double-click, restart cycling) still pass.",
       "acceptance": [
-        "ENEMY_ARCHETYPES in archetypes.ts has a `tank` key whose value only sets existing EnemyArchetype fields (initialTexture, idleAnim, moveAnim, optional deathAnim); the EnemyArchetype interface itself is unchanged.",
-        "tank's initialTexture/idleAnim/moveAnim (and deathAnim if set) reference texture/anim keys that are actually created in characterAssets.ts.",
-        "src/enemies/Enemy.ts is unmodified in this increment (diff excludes it).",
-        "Manually instantiating `new Enemy(scene, x, y, ENEMY_ARCHETYPES.tank, stats)` in a running scene and calling chase(targetX, targetY) renders the placeholder sprite, plays its idle/move animation, and moves toward the target with no Phaser missing-texture console warnings."
-      ]
-    },
-    {
-      "title": "Spawn tank in Stage 1",
-      "description": "Add a `tank` spawn entry to public/data/level_enemies.csv for the existing Stage 1 (level_id=1) so tank enemies actually appear in a normal playthrough, using the stats and archetype wired up in the previous increments.",
-      "acceptance": [
-        "public/data/level_enemies.csv has a new row: level_id=1, enemy_id=tank, a numeric spawn_rate, enemy_level=1.",
-        "The existing rusher and swarm rows in level_enemies.csv are unchanged.",
-        "Playing Stage 1 long enough shows tank enemies spawning alongside rusher/swarm, visibly taking more hits to kill and moving slower than rusher/swarm, with no crashes or console errors tied to the tank enemy.",
-        "No files other than public/data/level_enemies.csv are modified in this increment."
+        "With the Augment Choice popup open for ~4s and no input, `window.__qaGame` bullet count/list shows zero new bullets created while `player.paused === true`",
+        "A bullet fired immediately before opening the popup shows no position change during the pause window, then resumes moving from its pre-pause position after resume (no teleport/burst)",
+        "adversarial_qa/qa_agent.py's boundary-clamping check passes",
+        "adversarial_qa/qa_agent.py's idle-stuck check passes",
+        "adversarial_qa/qa_agent.py's edge-fire check passes",
+        "adversarial_qa/qa_agent.py's double-click check passes",
+        "adversarial_qa/qa_agent.py's restart-cycling check passes",
+        "`tsc --noEmit` passes with no errors"
       ]
     }
   ],
-  "current": 4
+  "current": 7
 }

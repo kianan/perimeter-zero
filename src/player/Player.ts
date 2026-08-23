@@ -57,6 +57,9 @@ export class Player extends Phaser.GameObjects.Container {
   private dead = false;
   // Set on a win (round ends without the player dying) -- unlike `dead`, no death anim/callback.
   private frozen = false;
+  // Set/cleared via pause()/resume() -- distinct from `frozen` (which is permanent, win-only).
+  // Only gates fire() for now (see TICKET-005); move() is intentionally untouched.
+  private paused = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, config: PlayerConfig) {
     super(scene, x, y);
@@ -101,8 +104,18 @@ export class Player extends Phaser.GameObjects.Container {
     this.pbody.setVelocity(0, 0);
   }
 
+  /** Gates fire() only (see fire()'s guard). Distinct from `frozen`, which is permanent and
+   * win-only -- this is meant to be toggled on/off (see resume()). */
+  pause() {
+    this.paused = true;
+  }
+
+  resume() {
+    this.paused = false;
+  }
+
   private fire() {
-    if (this.dead || this.frozen) return;
+    if (this.dead || this.frozen || this.paused) return;
     // Spawn from the actual muzzle, not the player's center: weapon pivot (player pos +
     // weapon's local offset) pushed forward along the weapon's current rendered rotation
     // (not the raw aimAngle -- that lags behind via the lerp smoothing in update()).
