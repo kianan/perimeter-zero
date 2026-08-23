@@ -1,42 +1,71 @@
 {
-  "status": "done",
-  "brief": "brief-pause-bug",
+  "status": "building",
+  "brief": "brief-10-levels",
   "increments": [
     {
-      "title": "Add Player paused state and gate fire()",
-      "description": "In Player.ts, add a new `private paused = false` field (separate from the existing `frozen` field) and two public methods, `pause()` and `resume()`, that set/clear it. Update fire()'s early-return guard to include the new flag.",
+      "title": "Enemy scale tiers 2-5 (rusher/swarm/tank)",
+      "description": "Add tiers 2-5 for each of rusher/swarm/tank to enemy_scale.csv, applying the GDD's +25%-per-level growth rule to damage/health/speed off each enemy's existing tier-1 row (placeholder curve, no new enemies, no tiers past 5).",
       "acceptance": [
-        "Player.ts declares a `private paused = false` field distinct from `frozen`",
-        "Player.ts exposes `pause(): void` that sets `this.paused = true` and `resume(): void` that sets `this.paused = false`",
-        "fire()'s early-return condition reads `if (this.dead || this.frozen || this.paused) return;`",
-        "move() is unchanged (no reference to the new `paused` field)",
-        "`tsc --noEmit` passes"
+        "enemy_scale.csv contains exactly 5 rows each for rusher, swarm, and tank (15 rows total plus header), tier values 1-5",
+        "For each enemy, tier N's damage and health are ~1.25x tier N-1's (rounded), matching the compounding pattern shown in the brief's rusher/swarm example rows",
+        "Tier 1 rows for all three enemies are unchanged from current values",
+        "No enemy has a row with level > 5"
       ]
     },
     {
-      "title": "Wire Player pause/resume into GameScene's augment-choice pause",
-      "description": "In GameScene.ts, call `this.player.pause()` inside openAugmentChoice() alongside the existing `this.physics.pause()`, and call `this.player.resume()` inside resumeAfterAugmentChoice() alongside the existing `this.physics.resume()`.",
+      "title": "Expand level.csv to 10 stages",
+      "description": "Add rows for id 2-10 to level.csv using the exact placeholder values given in the brief (duration/world_size/spawn_offset/exp scaling up modestly per stage), leaving special_spawn blank for all rows.",
       "acceptance": [
-        "openAugmentChoice() (GameScene.ts:387) calls `this.player.pause()` in addition to `this.physics.pause()`",
-        "resumeAfterAugmentChoice() (GameScene.ts:417) calls `this.player.resume()` in addition to `this.physics.resume()`",
-        "No other lines in GameScene.ts changed; Bullet.ts and AoeLob.ts are untouched",
-        "`tsc --noEmit` passes"
+        "level.csv has 10 data rows with id values 1 through 10, no gaps or duplicates",
+        "Column values for rows 1-10 match the brief's table exactly (stage_name, duration, world_size, spawn_offset, augment_exp_min_drop, augment_exp_max_drop)",
+        "special_spawn column is empty for all 10 rows",
+        "CSV header/column order is unchanged from the current file"
       ]
     },
     {
-      "title": "Verify fix against original repro and full regression suite",
-      "description": "Manually/agent-drive the original repro via window.__qaGame (main.ts's dev hook): open the Augment Choice popup, wait ~4s with no input, and confirm no new bullets are created while paused === true. Also confirm bullets fired before the popup opened freeze in place during the pause and resume from their pre-pause position (not a stale-position burst). Then run adversarial_qa/qa_agent.py's full check suite to confirm the other 8 checks (boundary clamping, idle-stuck, edge-fire, double-click, restart cycling) still pass.",
+      "title": "Expand level_enemies.csv spawn table for stages 1-10",
+      "description": "Add spawn rows for level_id 2-10 (rusher/swarm/tank each) following the brief's interpolation: spawn_rate trending down per stage, enemy_level stepping up roughly every 2 stages, capped at tier 5 (the ceiling added in increment 1). Fill in the unspecified stages 4-9 consistent with the given stage 1-3 and stage 10 anchors.",
       "acceptance": [
-        "With the Augment Choice popup open for ~4s and no input, `window.__qaGame` bullet count/list shows zero new bullets created while `player.paused === true`",
-        "A bullet fired immediately before opening the popup shows no position change during the pause window, then resumes moving from its pre-pause position after resume (no teleport/burst)",
-        "adversarial_qa/qa_agent.py's boundary-clamping check passes",
-        "adversarial_qa/qa_agent.py's idle-stuck check passes",
-        "adversarial_qa/qa_agent.py's edge-fire check passes",
-        "adversarial_qa/qa_agent.py's double-click check passes",
-        "adversarial_qa/qa_agent.py's restart-cycling check passes",
-        "`tsc --noEmit` passes with no errors"
+        "level_enemies.csv has exactly 3 rows (rusher/swarm/tank) for each level_id 1-10 (30 data rows total)",
+        "Every enemy_level value in the file is between 1 and 5 inclusive (no reference to a nonexistent tier 6+)",
+        "spawn_rate values are non-increasing (or trending down) across ascending level_id for each enemy_id",
+        "Stage 1, 2, 3, and 10 rows match the brief's explicit example values exactly",
+        "The enemy_level column name is unchanged (not renamed) and a comment exists in the CSV or adjacent doc noting it's a distinct namespace from level.csv's id"
+      ]
+    },
+    {
+      "title": "Wire levelCompleted read/write in player state",
+      "description": "Add (or confirm/extend) a write path in content/playerState.ts so levelCompleted can be persisted to player_state.json, alongside the existing read of that field. No GameScene changes yet \u2014 this increment only makes persistence possible and independently testable.",
+      "acceptance": [
+        "content/playerState.ts exports a function that writes an updated levelCompleted value to player_state.json on disk",
+        "Calling the write function with a value updates the on-disk JSON's levelCompleted field and leaves other fields untouched",
+        "Existing read of levelCompleted from player_state.json still returns the correct value after a write",
+        "tsc --noEmit passes"
+      ]
+    },
+    {
+      "title": "GameScene progression: advance through stages 1-10",
+      "description": "Replace the hardcoded module-level LEVEL_ID constant with an instance field currentLevelId, initialized from player_state.json's levelCompleted (+1, clamped to '1'). Update win() so stages 1-9 persist levelCompleted, increment currentLevelId, and restart the scene instead of ending the run; stage 10 keeps today's endRound(true) behavior. endRound(false) remains unchanged (no advance, no persist).",
+      "acceptance": [
+        "tsc --noEmit passes",
+        "GameScene.ts no longer has a module-level `const LEVEL_ID = '1'`; currentLevelId is a private instance field",
+        "currentLevelId's initial value is computed from playerState.levelCompleted + 1, clamped to '1' when levelCompleted is 0 or less",
+        "win() when currentLevelId < '10' persists levelCompleted, increments currentLevelId, and calls this.scene.restart() without calling endRound(true)",
+        "win() when currentLevelId === '10' calls endRound(true) exactly as before, with no persistence of a stage beyond 10",
+        "endRound(false) (death path) contains no calls to the levelCompleted write path and no currentLevelId increment"
+      ]
+    },
+    {
+      "title": "End-to-end progression verification",
+      "description": "Manual/scripted pass confirming the full acceptance criteria from the brief across the wired system: fresh-save stage advance, full run to stage 10 win, death non-persistence, and resume-from-save behavior.",
+      "acceptance": [
+        "tsc --noEmit passes",
+        "Starting from a fresh save (levelCompleted: 0), surviving Stage 1's timer transitions to Stage 2 with visibly different world_size/spawn_rate/enemy tier per the CSVs, and no 'You Won' popup appears",
+        "Surviving through to Stage 10 shows the existing 'You Won' GameEndPopup and the run ends",
+        "Dying mid-run (endRound(false)) leaves player_state.json's levelCompleted unchanged from its pre-run value",
+        "After a run persists levelCompleted > 0, restarting the app resumes at the next uncleared stage (verified via player_state.json or window.__qaGame), not Stage 1"
       ]
     }
   ],
-  "current": 7
+  "current": 0
 }
