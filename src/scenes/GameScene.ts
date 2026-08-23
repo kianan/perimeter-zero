@@ -5,6 +5,7 @@ import { Bullet } from '../weapons/Bullet';
 import { AoeLob } from '../weapons/AoeLob';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
 import { GameEndPopup } from '../ui/GameEndPopup';
+import { LevelCompletePopup } from '../ui/LevelCompletePopup';
 import { AugmentChoicePopup } from '../ui/AugmentChoicePopup';
 import { DevLog } from '../ui/DevLog';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
@@ -213,26 +214,43 @@ export class GameScene extends Phaser.Scene {
     this.endRound(false);
   }
 
-  /** Survived the timer. Stages 1-9: persist this stage as completed, advance to the next
-   * stage, and restart the scene straight into it -- no end-of-run popup, the run keeps
-   * going. Stage 10 (the final stage): unchanged from before -- show the win popup via
-   * endRound(true), with no persistence beyond stage 10. */
+  /** Survived the timer. Stages 1-9: freeze the world and show a "Level Complete" popup
+   * (stage clears keep the run going, so a different message/button than GameEndPopup's
+   * win/loss framing) -- persisting progress and actually advancing into the next stage
+   * only happens once the player clicks Next (see showLevelComplete() below). Stage 10
+   * (the final stage): unchanged -- show the win popup via endRound(true), no persistence
+   * beyond stage 10. */
   private win() {
     if (this.currentLevelId !== FINAL_LEVEL_ID) {
-      setLevelCompleted(Number(this.currentLevelId));
-      this.currentLevelId = String(Number(this.currentLevelId) + 1);
-      // trackEnemy()'s DESTROY listener guards on roundOver to tell "the scene is tearing
-      // down, don't touch already-destroyed objects like DevLog's Text" apart from a real
-      // kill -- endRound() normally sets this, but a stage-advance restart bypasses
-      // endRound() entirely. Without this, scene.restart() below destroys every remaining
-      // live enemy, each DESTROY fires awardAugmentExp() -> logDev() against a Text object
-      // mid-teardown, and it throws (same crash the roundOver guard was originally added
-      // to prevent -- see trackEnemy()'s comment).
-      this.roundOver = true;
-      this.scene.restart();
+      this.showLevelComplete();
       return;
     }
     this.endRound(true);
+  }
+
+  /** Freeze-and-popup twin of endRound(), for a mid-run stage clear rather than the run
+   * actually ending. Same roundOver guard for the same reason endRound() sets it --
+   * trackEnemy()'s DESTROY listener relies on roundOver to tell "the scene is tearing down"
+   * apart from a real kill; without it, the eventual scene.restart() (from the popup's Next
+   * button) destroys every remaining live enemy and each DESTROY fires awardAugmentExp() ->
+   * logDev() against an already-destroyed Text object mid-teardown. */
+  private showLevelComplete() {
+    if (this.roundOver) return;
+    this.roundOver = true;
+    this.player.freeze();
+    this.physics.pause();
+    playSfx(this, 'round_win');
+
+    const clearedLevelId = this.currentLevelId;
+    const { width, height } = this.cameras.main;
+    new LevelCompletePopup(this, width / 2, height / 2, {
+      levelId: clearedLevelId,
+      onNext: () => {
+        setLevelCompleted(Number(clearedLevelId));
+        this.currentLevelId = String(Number(clearedLevelId) + 1);
+        this.scene.restart();
+      },
+    }).setDepth(1000);
   }
 
   private endRound(won: boolean) {
