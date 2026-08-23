@@ -6,6 +6,7 @@ import { AoeLob } from '../weapons/AoeLob';
 import { preloadCharacterAssets, createCharacterAnims } from '../content/characterAssets';
 import { GameEndPopup } from '../ui/GameEndPopup';
 import { LevelCompletePopup } from '../ui/LevelCompletePopup';
+import { IntroDialoguePopup } from '../ui/IntroDialoguePopup';
 import { AugmentChoicePopup } from '../ui/AugmentChoicePopup';
 import { DevLog } from '../ui/DevLog';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
@@ -14,6 +15,8 @@ import {
   getPlayerState,
   getLevelCompleted,
   setLevelCompleted,
+  hasSeenAugmentTutorial,
+  setAugmentTutorialSeen,
 } from '../content/playerState';
 import { preloadLevelData, getLevel, getLevelEnemies } from '../content/levels';
 import { preloadEnemyData, getEnemy } from '../content/enemies';
@@ -179,10 +182,49 @@ export class GameScene extends Phaser.Scene {
       .text(16, 16, '', { fontFamily: 'sans-serif', fontSize: '20px', color: '#ffffff' })
       .setScrollFactor(0)
       .setDepth(1000);
-    this.roundStartTime = this.time.now;
+
+    const { width, height } = this.cameras.main;
+
+    // Control hint (brief-tutorial.md): level-scoped, not seen-flag-gated -- a player who
+    // quits mid-level-1 and comes back should still see it, unlike the one-time intro dialogue
+    // below.
+    if (this.currentLevelId === '1') {
+      this.add
+        .text(width / 2, height - 24, 'WASD to move  ·  Mouse to aim & fire', {
+          fontFamily: 'sans-serif',
+          fontSize: '16px',
+          color: '#9fb3c8',
+        })
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(1000);
+    }
 
     if (import.meta.env.DEV) {
       this.devLog = new DevLog(this);
+    }
+
+    // Intro dialogue (brief-tutorial.md): shows every time level 1 starts (no seen-flag --
+    // simpler, and level 1 is the tutorial stage regardless of whether this browser's seen it
+    // before), before the round timer starts, so a player doesn't lose survive-timer seconds
+    // to reading it. Gates on `this.paused` (already checked by spawnEnemy()/update()'s
+    // early-return) and the player's own separate paused flag (its auto-fire timer isn't
+    // gated by GameScene.paused -- see brief-pause-bug.md), same pattern openAugmentChoice()
+    // uses, just with nothing yet in physics motion at level start to also need
+    // physics.pause() for.
+    if (this.currentLevelId === '1') {
+      this.paused = true;
+      this.player.pause();
+      const intro = new IntroDialoguePopup(this, width / 2, height / 2, {
+        onDismiss: () => {
+          intro.destroy();
+          this.paused = false;
+          this.player.resume();
+          this.roundStartTime = this.time.now;
+        },
+      }).setDepth(1000);
+    } else {
+      this.roundStartTime = this.time.now;
     }
   }
 
@@ -442,10 +484,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.pause();
     playSfx(this, 'level_up');
 
+    const showTutorialHint = !hasSeenAugmentTutorial();
+    setAugmentTutorialSeen();
+
     const { width, height } = this.cameras.main;
     const popup = new AugmentChoicePopup(this, width / 2, height / 2, {
+      hintLines: showTutorialHint
+        ? ['Pick an augment to back you up — new firepower, permanent for this run.']
+        : undefined,
       options: choices.map((choice) => ({
         name: choice.tier.name,
+        desc: choice.tier.desc,
+        damage: choice.tier.damage,
         onChoose: () => {
           this.pickAugmentTier(choice.identity, choice.tier);
           popup.destroy();

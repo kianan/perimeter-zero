@@ -4,6 +4,11 @@ const PLAYER_STATE_KEY = 'data_player_state';
 // localStorage key for the persisted override -- namespaced so it doesn't collide with any
 // other key this page might use.
 const LEVEL_COMPLETED_STORAGE_KEY = 'playerState.levelCompleted';
+// Tutorial seen-flag (brief-tutorial.md) -- same localStorage pattern as levelCompleted, but
+// no player_state.json fallback: unset simply means "never seen," no baked-in default makes
+// sense for a one-time flag the way it does for progress. The level-1 intro dialogue has no
+// equivalent flag -- it just shows every time currentLevelId === '1' (see GameScene.create()).
+const AUGMENT_TUTORIAL_SEEN_KEY = 'playerState.augmentTutorialSeen';
 
 export interface PlayerState {
   levelCompleted: number;
@@ -45,4 +50,13 @@ export function getLevelCompleted(scene: Phaser.Scene): number {
  * value instead of player_state.json's baked-in fallback. */
 export function setLevelCompleted(value: number): void {
   localStorage.setItem(LEVEL_COMPLETED_STORAGE_KEY, String(value));
+}
+
+/** True once the first-ever Augment choice popup has been shown, this browser. */
+export function hasSeenAugmentTutorial(): boolean {
+  return localStorage.getItem(AUGMENT_TUTORIAL_SEEN_KEY) === '1';
+}
+
+export function setAugmentTutorialSeen(): void {
+  localStorage.setItem(AUGMENT_TUTORIAL_SEEN_KEY, '1');
 }
