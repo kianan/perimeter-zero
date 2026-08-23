@@ -162,9 +162,19 @@ export class Player extends Phaser.GameObjects.Container {
   }
 
   /** Contact damage from an enemy. Ignored while within the post-hit invuln window,
-   * so standing inside an enemy doesn't drain HP every physics step. */
+   * so standing inside an enemy doesn't drain HP every physics step. Also ignores a
+   * non-positive amount outright (before touching invulnerableUntil at all) -- some
+   * archetypes (e.g. Shooter, enemy_scale.csv: damage=0) deal zero contact damage by
+   * design, relying purely on their ranged attack instead. Without this guard, a
+   * zero-damage "hit" from an enemy standing/overlapping next to the player still
+   * re-armed the same 500ms invuln window real contact damage uses, plus fired the hit
+   * flash/SFX for no actual damage -- e.g. a Shooter overlapping the player could
+   * silently eat a Rusher's real contact damage by continuously refreshing invulnerableUntil,
+   * which is exactly the "identical contact-damage timing" regression this ticket's QA
+   * pass exists to catch. */
   takeDamage(amount: number) {
     if (this.dead) return;
+    if (amount <= 0) return;
     const now = this.scene.time.now;
     if (now < this.invulnerableUntil) return;
     this.invulnerableUntil = now + INVULN_MS;
