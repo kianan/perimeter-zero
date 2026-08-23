@@ -2,7 +2,7 @@
 id: TICKET-016
 title: 'Enemy.ts: preferred-range stand-off + dash-burst cycle'
 increment: 16
-status: in_progress
+status: done
 acceptance:
 - '`tsc --noEmit` passes'
 - '`EnemyStats`/`Enemy` constructor accepts `preferredRange`, `dashBurstMult`, `dashBurstMs`,
