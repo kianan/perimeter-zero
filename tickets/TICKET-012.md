@@ -2,7 +2,7 @@
 id: TICKET-012
 title: 'GameScene progression: advance through stages 1-10'
 increment: 12
-status: in_progress
+status: done
 acceptance:
 - tsc --noEmit passes
 - GameScene.ts no longer has a module-level `const LEVEL_ID = '1'`; currentLevelId
