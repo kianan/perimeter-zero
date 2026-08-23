@@ -2,7 +2,7 @@
 id: TICKET-014
 title: Bullet damage field + enemy-bullet damage path
 increment: 14
-status: in_progress
+status: done
 acceptance:
 - '`tsc --noEmit` passes'
 - '`BulletConfig` has a `damage: number` field and `Bullet` exposes it as a public
