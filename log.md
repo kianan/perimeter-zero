@@ -25,3 +25,4 @@
 - `13:54:41` planned 6 increments
 - `13:56:01` TICKET-008 review (attempt 1): REVISE
 - `13:56:42` TICKET-008 review (attempt 2): ACCEPT
+- `13:57:06` TICKET-009 pushback: The ticket says to use "the exact placeholder values given in the brief" for stages 2-10's duration/world_size/spawn_offset/exp scaling, but no brief document with that table was included in my context (only the current level.csv with row 1) — can you provide the brief's stage 2-10 value table (or the brief file itself) so I match it exactly rather than inventing a scaling curve?
