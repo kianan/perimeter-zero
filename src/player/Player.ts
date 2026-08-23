@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Bullet } from '../weapons/Bullet';
+import { playSfx } from '../content/sfx';
 
 const SCALE = 0.16;     // 2048px source frames -> ~a game-sized character -- player's own body,
                          // not weapon-specific, so stays fixed here rather than in weapon.csv
@@ -118,6 +119,7 @@ export class Player extends Phaser.GameObjects.Container {
       radius: this.bulletRadius,
     });
     this.onFire?.(bullet);
+    playSfx(this.scene, 'bullet_fire');
   }
 
   getHp() {
@@ -151,7 +153,10 @@ export class Player extends Phaser.GameObjects.Container {
       this.weaponSprite.setVisible(false); // no death frames for the weapon layer
       this.bodySprite.clearTint();
       this.bodySprite.play('body_death');
+      playSfx(this.scene, 'player_death');
       this.onDeath?.();
+    } else {
+      playSfx(this.scene, 'player_hit');
     }
   }
 

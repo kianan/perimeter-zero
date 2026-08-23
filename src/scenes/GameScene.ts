@@ -22,6 +22,7 @@ import {
 } from '../content/augments';
 import { preloadAugmentLevelData, getAugmentLevelThreshold } from '../content/augmentLevel';
 import { ENEMY_ARCHETYPES } from '../enemies/archetypes';
+import { preloadSfxData, playSfx } from '../content/sfx';
 
 // No level-select/progression system yet -- always load level 1's data.
 const LEVEL_ID = '1';
@@ -82,6 +83,7 @@ export class GameScene extends Phaser.Scene {
     preloadPlayerLevelData(this);
     preloadAugmentData(this);
     preloadAugmentLevelData(this);
+    preloadSfxData(this);
   }
 
   create() {
@@ -203,6 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.roundOver = true;
     this.player.freeze();
     this.physics.pause();
+    playSfx(this, won ? 'round_win' : 'round_lose');
 
     const { width, height } = this.cameras.main;
     new GameEndPopup(this, width / 2, height / 2, {
@@ -383,6 +386,7 @@ export class GameScene extends Phaser.Scene {
   private openAugmentChoice(choices: { identity: AugmentIdentity; tier: AugmentTier }[]) {
     this.paused = true;
     this.physics.pause();
+    playSfx(this, 'level_up');
 
     const { width, height } = this.cameras.main;
     const popup = new AugmentChoicePopup(this, width / 2, height / 2, {

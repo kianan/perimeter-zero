@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { playSfx } from '../content/sfx';
 
 // Pure animation shape, not a balance stat -- unlike radius/damage/etc, doesn't need to be
 // data-driven (see augment_weapon_scale.csv). Blast grows from 0.85x up to exactly 1x (the
@@ -44,10 +45,12 @@ export class AoeLob extends Phaser.GameObjects.Arc {
     scene.add.existing(this);
 
     if (!config.travels) {
+      playSfx(scene, 'landmine_place');
       scene.time.delayedCall(config.delayMs, () => this.explode());
       return;
     }
 
+    playSfx(scene, 'grenade_lob');
     const travelDist = Phaser.Math.Distance.Between(x, y, config.targetX, config.targetY);
     const travelMs = Math.max(100, (travelDist / config.travelSpeed) * 1000);
 
@@ -67,6 +70,7 @@ export class AoeLob extends Phaser.GameObjects.Arc {
     const { radius, onExplode, explosionColor, explosionVisualMs } = this.config;
 
     onExplode(x, y, radius);
+    playSfx(scene, 'explode');
 
     const blast = scene.add.circle(x, y, radius, explosionColor, 0.5).setScale(EXPLOSION_START_SCALE);
     scene.tweens.add({

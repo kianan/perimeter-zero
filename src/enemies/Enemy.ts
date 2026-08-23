@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { EnemyArchetype } from './archetypes';
+import { playSfx } from '../content/sfx';
 
 const HIT_FLASH_MS = 120;
 const DEATH_FADE_MS = 300; // used when an archetype has no death anim (see archetypes.ts)
@@ -62,6 +63,7 @@ export class Enemy extends Phaser.GameObjects.Container {
 
     this.bodySprite.setTint(0xff3b3b);
     this.scene.time.delayedCall(HIT_FLASH_MS, () => this.bodySprite.clearTint());
+    playSfx(this.scene, 'enemy_hit');
   }
 
   /** Plays the death anim if the archetype has one, otherwise fades out -- either way,
@@ -72,6 +74,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.pbody.setVelocity(0, 0);
     this.pbody.enable = false;
     this.bodySprite.clearTint();
+    playSfx(this.scene, 'enemy_death');
 
     if (this.archetype.deathAnim) {
       this.bodySprite.once('animationcomplete', () => this.destroy());

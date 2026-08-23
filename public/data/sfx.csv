@@ -1,0 +1,13 @@
+event_id,wave_type,freq_start_hz,freq_end_hz,duration_ms,volume
+bullet_fire,square,880,660,60,0.25
+grenade_lob,triangle,300,500,150,0.3
+explode,sawtooth,180,40,300,0.5
+landmine_place,sine,220,220,80,0.25
+enemy_hit,square,150,100,80,0.2
+enemy_death,sawtooth,200,50,250,0.35
+player_hit,square,120,80,120,0.4
+player_death,sawtooth,220,40,500,0.5
+level_up,triangle,440,880,200,0.35
+round_win,triangle,523,1047,400,0.4
+round_lose,sawtooth,300,80,500,0.4
+ui_click,square,600,600,40,0.15

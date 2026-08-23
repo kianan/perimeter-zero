@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { playSfx } from '../content/sfx';
 
 const WIDTH = 220;
 const HEIGHT = 56;
@@ -38,7 +39,10 @@ export class Button extends Phaser.GameObjects.Container {
     bg.setInteractive({ useHandCursor: true });
     bg.on('pointerover', () => bg.setFillStyle(BG_HOVER_COLOR));
     bg.on('pointerout', () => bg.setFillStyle(BG_COLOR));
-    bg.on('pointerdown', onClick);
+    bg.on('pointerdown', () => {
+      playSfx(scene, 'ui_click');
+      onClick();
+    });
 
     scene.add.existing(this);
   }
