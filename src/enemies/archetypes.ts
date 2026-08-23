@@ -24,28 +24,29 @@ export const ENEMY_ARCHETYPES: Record<string, EnemyArchetype> = {
     moveAnim: 'swarm_fly',
   },
   tank: {
-    // No tank art of its own yet -- these keys point at rusher's PNG frames reused under a
-    // tank_-prefixed key. characterAssets.ts's preloadCharacterAssets() loads
-    // tank_idle_0..5/tank_walk_0..7/tank_death_0..9 from assets/enemies/rusher/*.png, and
+    // Real tank art (TICKET-018): characterAssets.ts's preloadCharacterAssets() loads
+    // tank_idle_0..5/tank_walk_0..7/tank_death_0..9 from assets/enemies/tank/*.png, and
     // createCharacterAnims() registers the tank_idle/tank_walk/tank_death anim keys
-    // referenced below -- see that file's diff. Same placeholder-art approach the plan calls
-    // out. Swap to real tank_ frames later with no change needed here.
+    // referenced below -- same tank_-prefixed key names as the previous placeholder
+    // increment, just pointed at tank's own asset folder now.
     initialTexture: 'tank_idle_0',
     idleAnim: 'tank_idle',
     moveAnim: 'tank_walk',
     deathAnim: 'tank_death',
   },
-  // Shooter/Charger (TICKET-017): behavior is real (preferredRange stand-off + ranged fire
-  // for shooter, dash-burst cycle for charger -- see Enemy.ts/GameScene.spawnEnemy()), but
-  // neither has its own art yet. Reusing rusher's already-loaded texture/anim keys directly
-  // (same placeholder-reuse approach tank takes above) rather than adding new
-  // shooter_-/charger_-prefixed preloads -- real art swap is the next increment.
+  // Shooter (TICKET-018): real art. characterAssets.ts loads shooter_idle_0..5/
+  // shooter_walk_0..7/shooter_death_0..9 from assets/enemies/ranged/*.png (same frame-count
+  // convention as rusher) -- no longer reusing rusher's placeholder texture/anim keys.
   shooter: {
-    initialTexture: 'rusher_idle_0',
-    idleAnim: 'rusher_idle',
-    moveAnim: 'rusher_walk',
-    deathAnim: 'rusher_death',
+    initialTexture: 'shooter_idle_0',
+    idleAnim: 'shooter_idle',
+    moveAnim: 'shooter_walk',
+    deathAnim: 'shooter_death',
   },
+  // Charger (TICKET-017): behavior is real (dash-burst cycle -- see Enemy.ts/
+  // GameScene.spawnEnemy()), but has no art of its own yet. Still reuses rusher's
+  // already-loaded texture/anim keys as a placeholder -- out of scope for TICKET-018, which
+  // only swaps Shooter and Tank.
   charger: {
     initialTexture: 'rusher_idle_0',
     idleAnim: 'rusher_idle',
