@@ -15,3 +15,9 @@
 - `13:32:58` TICKET-006 pushback: Produced no FILE: blocks — restate what you need to change.
 - `13:33:42` TICKET-006 pushback: Produced no FILE: blocks — restate what you need to change.
 - `13:33:49` TICKET-006 escalated; Studio Head: skip
+- `13:34:xx` TICKET-007 build crashed: "Reached maximum number of turns (12)" — run halted
+- (manual) Studio Head fixed .env's stale CLAUDE_CODE_OAUTH_TOKEN (org disabled it), raised
+  max_turns 12→32 in claude_sdk.py, tested the fix live, confirmed it works
+- (manual) TICKET-006 marked done — the code was correct, only the automated review/build
+  parsing loop got stuck; TICKET-007 marked done — verified manually, live, by Studio Head
+- (manual) run/brief-pause-bug merged to main

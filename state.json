@@ -1,5 +1,5 @@
 {
-  "status": "building",
+  "status": "done",
   "brief": "brief-pause-bug",
   "increments": [
     {
@@ -38,5 +38,5 @@
       ]
     }
   ],
-  "current": 6
+  "current": 7
 }
