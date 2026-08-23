@@ -2,7 +2,7 @@
 id: TICKET-018
 title: 'Real art: Shooter frames + Tank art swap'
 increment: 18
-status: in_progress
+status: done
 acceptance:
 - '`tsc --noEmit` passes'
 - '`archetypes.ts` loads `shooter_*` keys from `assets/enemies/ranged/*.png`, not
