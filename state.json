@@ -35,22 +35,23 @@
     },
     {
       "title": "Wire levelCompleted read/write in player state",
-      "description": "Add (or confirm/extend) a write path in content/playerState.ts so levelCompleted can be persisted to player_state.json, alongside the existing read of that field. No GameScene changes yet \u2014 this increment only makes persistence possible and independently testable.",
+      "description": "Add (or confirm/extend) a read/write path in content/playerState.ts so levelCompleted can be persisted via localStorage (this is a pure client-side Vite/Phaser bundle -- no Node fs/backend to write player_state.json to disk from browser code; the Engineer correctly pushed back on the original file-write framing). No GameScene changes yet \u2014 this increment only makes persistence possible and independently testable.",
       "acceptance": [
-        "content/playerState.ts exports a function that writes an updated levelCompleted value to player_state.json on disk",
-        "Calling the write function with a value updates the on-disk JSON's levelCompleted field and leaves other fields untouched",
-        "Existing read of levelCompleted from player_state.json still returns the correct value after a write",
+        "content/playerState.ts exports a function that reads levelCompleted from localStorage if present, falling back to player_state.json's baked-in value (currently 0) if localStorage has nothing set yet",
+        "content/playerState.ts exports a function that writes an updated levelCompleted value to localStorage",
+        "Calling the write function then calling the read function returns the newly written value, not the player_state.json fallback",
+        "No other fields read from player_state.json (mainWeapon, playerLevel) change behavior",
         "tsc --noEmit passes"
       ]
     },
     {
       "title": "GameScene progression: advance through stages 1-10",
-      "description": "Replace the hardcoded module-level LEVEL_ID constant with an instance field currentLevelId, initialized from player_state.json's levelCompleted (+1, clamped to '1'). Update win() so stages 1-9 persist levelCompleted, increment currentLevelId, and restart the scene instead of ending the run; stage 10 keeps today's endRound(true) behavior. endRound(false) remains unchanged (no advance, no persist).",
+      "description": "Replace the hardcoded module-level LEVEL_ID constant with an instance field currentLevelId, initialized from content/playerState.ts's levelCompleted read (localStorage-backed, +1, clamped to '1'). Update win() so stages 1-9 persist levelCompleted via the write path from the previous increment, increment currentLevelId, and restart the scene instead of ending the run; stage 10 keeps today's endRound(true) behavior. endRound(false) remains unchanged (no advance, no persist).",
       "acceptance": [
         "tsc --noEmit passes",
         "GameScene.ts no longer has a module-level `const LEVEL_ID = '1'`; currentLevelId is a private instance field",
-        "currentLevelId's initial value is computed from playerState.levelCompleted + 1, clamped to '1' when levelCompleted is 0 or less",
-        "win() when currentLevelId < '10' persists levelCompleted, increments currentLevelId, and calls this.scene.restart() without calling endRound(true)",
+        "currentLevelId's initial value is computed from content/playerState.ts's levelCompleted read + 1, clamped to '1' when that value is 0 or less",
+        "win() when currentLevelId < '10' calls the localStorage write path from content/playerState.ts, increments currentLevelId, and calls this.scene.restart() without calling endRound(true)",
         "win() when currentLevelId === '10' calls endRound(true) exactly as before, with no persistence of a stage beyond 10",
         "endRound(false) (death path) contains no calls to the levelCompleted write path and no currentLevelId increment"
       ]
@@ -62,8 +63,8 @@
         "tsc --noEmit passes",
         "Starting from a fresh save (levelCompleted: 0), surviving Stage 1's timer transitions to Stage 2 with visibly different world_size/spawn_rate/enemy tier per the CSVs, and no 'You Won' popup appears",
         "Surviving through to Stage 10 shows the existing 'You Won' GameEndPopup and the run ends",
-        "Dying mid-run (endRound(false)) leaves player_state.json's levelCompleted unchanged from its pre-run value",
-        "After a run persists levelCompleted > 0, restarting the app resumes at the next uncleared stage (verified via player_state.json or window.__qaGame), not Stage 1"
+        "Dying mid-run (endRound(false)) leaves the persisted levelCompleted (localStorage) unchanged from its pre-run value",
+        "After a run persists levelCompleted > 0, restarting the app resumes at the next uncleared stage (verified via localStorage or window.__qaGame), not Stage 1"
       ]
     }
   ],
