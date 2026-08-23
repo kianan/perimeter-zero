@@ -8,7 +8,12 @@ import { GameEndPopup } from '../ui/GameEndPopup';
 import { AugmentChoicePopup } from '../ui/AugmentChoicePopup';
 import { DevLog } from '../ui/DevLog';
 import { preloadWeaponData, getWeapon } from '../content/weapons';
-import { preloadPlayerState, getPlayerState } from '../content/playerState';
+import {
+  preloadPlayerState,
+  getPlayerState,
+  getLevelCompleted,
+  setLevelCompleted,
+} from '../content/playerState';
 import { preloadLevelData, getLevel, getLevelEnemies } from '../content/levels';
 import { preloadEnemyData, getEnemy } from '../content/enemies';
 import { preloadPlayerLevelData, getPlayerLevel } from '../content/playerLevel';
@@ -24,8 +29,8 @@ import { preloadAugmentLevelData, getAugmentLevelThreshold } from '../content/au
 import { ENEMY_ARCHETYPES } from '../enemies/archetypes';
 import { preloadSfxData, playSfx } from '../content/sfx';
 
-// No level-select/progression system yet -- always load level 1's data.
-const LEVEL_ID = '1';
+// Stages run 1-10 (level.csv). The final stage id, as a string to match currentLevelId's type.
+const FINAL_LEVEL_ID = '10';
 
 const MAX_AUGMENT_CHOICES = 3;
 
@@ -50,6 +55,13 @@ export class GameScene extends Phaser.Scene {
   // True while an AugmentChoicePopup is up -- unlike roundOver, this resumes. Gameplay
   // (movement, enemy chase, spawning) freezes; the round itself keeps going once resumed.
   private paused = false;
+  // Which stage (level.csv's `id`) this run is playing. Recomputed each create() (including
+  // on scene.restart(), see win()) from content/playerState.ts's persisted levelCompleted --
+  // reads that value + 1, clamped to '1' when the result would be 0 or less (levelCompleted
+  // is never negative in practice, but the clamp guards against a bad/cleared localStorage
+  // value). A stage-N win persists levelCompleted=N via setLevelCompleted() before restarting,
+  // so the next create() naturally picks up stage N+1 -- see win().
+  private currentLevelId!: string;
   // Resolved from weapon.csv/weapon_scale.csv via the equipped weapon in player_state.json --
   // see content/weapons.ts and content/playerState.ts.
   private bulletDamage = 0;
@@ -87,11 +99,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // scene.restart() (see endRound()'s Restart button) re-runs create(), not the constructor
-    // -- class-field initializers below only fire once, ever, so reset mutable state here or
-    // a restarted run inherits stale enemies/bullets/roundOver from the previous one. Old
-    // timers don't need manual cleanup -- Phaser's scene shutdown (part of restart()) already
-    // clears every registered time event from the previous run.
+    // scene.restart() (see endRound()'s Restart button, and win()'s stage-advance path)
+    // re-runs create(), not the constructor -- class-field initializers below only fire once,
+    // ever, so reset mutable state here or a restarted run inherits stale enemies/bullets/
+    // roundOver from the previous one. Old timers don't need manual cleanup -- Phaser's scene
+    // shutdown (part of restart()) already clears every registered time event from the
+    // previous run.
     this.enemies = [];
     this.bullets = [];
     this.roundOver = false;
@@ -100,9 +113,12 @@ export class GameScene extends Phaser.Scene {
     this.augmentLevel = 1;
     this.ownedAugments = new Map();
 
+    const nextLevelId = getLevelCompleted(this) + 1;
+    this.currentLevelId = String(nextLevelId <= 0 ? 1 : nextLevelId);
+
     createCharacterAnims(this);
 
-    const level = getLevel(this, LEVEL_ID);
+    const level = getLevel(this, this.currentLevelId);
     this.surviveSeconds = level.duration;
     this.worldSize = level.worldSize;
     this.spawnOffset = level.spawnOffset;
@@ -134,9 +150,9 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.worldSize, this.worldSize);
 
     // One timer per level_enemies.csv row for this level -- reads however many enemy types
-    // the CSV lists for LEVEL_ID, not a hardcoded single enemy type. enemy_level comes from
-    // the same row too, so nothing here hardcodes which enemy_scale.csv tier to spawn.
-    for (const spawn of getLevelEnemies(this, LEVEL_ID)) {
+    // the CSV lists for currentLevelId, not a hardcoded single enemy type. enemy_level comes
+    // from the same row too, so nothing here hardcodes which enemy_scale.csv tier to spawn.
+    for (const spawn of getLevelEnemies(this, this.currentLevelId)) {
       this.spawnEnemy(spawn.enemyId, spawn.enemyLevel); // one immediately, so the player isn't waiting out the first interval
       this.time.addEvent({
         delay: spawn.spawnRate,
@@ -190,13 +206,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Player hit 0 HP. Freeze the world (physics pause -- doesn't stop the player's death
-   * anim, which runs off the anim system, not physics) and show a game-over popup. */
+   * anim, which runs off the anim system, not physics) and show a game-over popup. No
+   * progression: levelCompleted is not persisted and currentLevelId is not advanced -- a
+   * death replays the same stage, it doesn't roll progress back. */
   private gameOver() {
     this.endRound(false);
   }
 
-  /** Survived the timer. Same freeze as gameOver(), different popup. */
+  /** Survived the timer. Stages 1-9: persist this stage as completed, advance to the next
+   * stage, and restart the scene straight into it -- no end-of-run popup, the run keeps
+   * going. Stage 10 (the final stage): unchanged from before -- show the win popup via
+   * endRound(true), with no persistence beyond stage 10. */
   private win() {
+    if (this.currentLevelId !== FINAL_LEVEL_ID) {
+      setLevelCompleted(Number(this.currentLevelId));
+      this.currentLevelId = String(Number(this.currentLevelId) + 1);
+      this.scene.restart();
+      return;
+    }
     this.endRound(true);
   }
 
