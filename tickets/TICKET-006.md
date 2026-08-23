@@ -2,7 +2,7 @@
 id: TICKET-006
 title: Wire Player pause/resume into GameScene's augment-choice pause
 increment: 6
-status: in_progress
+status: blocked
 acceptance:
 - openAugmentChoice() (GameScene.ts:387) calls `this.player.pause()` in addition to
   `this.physics.pause()`
