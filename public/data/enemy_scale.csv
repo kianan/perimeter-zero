@@ -1,4 +1,16 @@
 enemy_id,level,damage,health,speed
 rusher,1,10,20,110
+rusher,2,13,25,138
+rusher,3,16,31,173
+rusher,4,20,39,216
+rusher,5,25,49,270
 swarm,1,5,10,150
+swarm,2,6,13,188
+swarm,3,8,16,235
+swarm,4,10,20,294
+swarm,5,13,25,368
 tank,1,15,50,70
+tank,2,19,63,88
+tank,3,24,79,110
+tank,4,30,99,138
+tank,5,38,124,173
