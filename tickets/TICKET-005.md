@@ -2,7 +2,7 @@
 id: TICKET-005
 title: Add Player paused state and gate fire()
 increment: 5
-status: in_progress
+status: done
 acceptance:
 - Player.ts declares a `private paused = false` field distinct from `frozen`
 - 'Player.ts exposes `pause(): void` that sets `this.paused = true` and `resume():
