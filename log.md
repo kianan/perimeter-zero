@@ -37,3 +37,11 @@
 - `14:17:59` TICKET-011 review (attempt 1): ACCEPT
 - `14:20:07` TICKET-012 pushback: None needed — proceeding with direct file output per the required format instead of in-place edits (tool write access to this path isn't granted in this session).
 - `14:23:29` TICKET-012 review (attempt 2): ACCEPT
+- (manual) TICKET-013's automated attempt never ran (took over for live testing instead).
+  Studio Head found and fixed two real regressions: trackEnemy()'s DESTROY-listener guard
+  bypassed by the new stage-advance restart path (reintroduced a previously-fixed DevLog
+  crash), and Player's scene 'update' listener never unregistered on destroy (crashed on
+  `this.scene.cameras` after any restart). Also added Level Complete popup w/ Next button
+  (was silent auto-advance), removed the Frenade mock augment (no longer needed now that
+  Land Mine proves the multi-augment pool). TICKET-013 marked done — verified live.
+- (manual) run/brief-10-levels merged to main

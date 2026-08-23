@@ -1,5 +1,5 @@
 {
-  "status": "building",
+  "status": "done",
   "brief": "brief-10-levels",
   "increments": [
     {
@@ -68,5 +68,5 @@
       ]
     }
   ],
-  "current": 12
+  "current": 13
 }
