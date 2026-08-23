@@ -51,6 +51,12 @@ export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
+  // Enemy-fired bullets, tracked separately from the player's own -- no enemy fires bullets
+  // yet (this increment just wires up the damage path so a future ranged enemy has somewhere
+  // to plug into). Same push/splice-on-DESTROY pattern as `bullets`/`enemies` -- see
+  // trackBullet()/trackEnemy() below; kept separate here since it needs its own overlap
+  // handler targeting the player rather than enemies.
+  private enemyBullets: Bullet[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private hudText!: Phaser.GameObjects.Text;
   private roundStartTime = 0;
@@ -67,7 +73,9 @@ export class GameScene extends Phaser.Scene {
   // so the next create() naturally picks up stage N+1 -- see win().
   private currentLevelId!: string;
   // Resolved from weapon.csv/weapon_scale.csv via the equipped weapon in player_state.json --
-  // see content/weapons.ts and content/playerState.ts.
+  // see content/weapons.ts and content/playerState.ts. Passed into Player as its bullets'
+  // damage (see Player's `damage` config field / Bullet.damage) -- overlap callbacks read
+  // damage off the bullet itself now, not this field.
   private bulletDamage = 0;
   // From level.csv, resolved in create().
   private surviveSeconds = 0;
@@ -111,6 +119,7 @@ export class GameScene extends Phaser.Scene {
     // previous run.
     this.enemies = [];
     this.bullets = [];
+    this.enemyBullets = [];
     this.roundOver = false;
     this.paused = false;
     this.augmentExp = 0;
@@ -147,6 +156,7 @@ export class GameScene extends Phaser.Scene {
       muzzleOffset: weapon.muzzleOffset,
       bulletScale: weapon.bulletScale,
       bulletRadius: weapon.bulletRadius,
+      damage: this.bulletDamage,
       onFire: (bullet) => this.trackBullet(bullet),
       onDeath: () => this.gameOver(),
     });
@@ -167,10 +177,18 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
-      (enemyObj as Enemy).takeDamage(this.bulletDamage);
+      (enemyObj as Enemy).takeDamage((bulletObj as Bullet).damage);
     });
     this.physics.add.overlap(this.player, this.enemies, (_playerObj, enemyObj) => {
       this.player.takeDamage((enemyObj as Enemy).damage);
+    });
+    // No enemy fires bullets yet (this increment just wires up the damage path -- see
+    // `enemyBullets` field comment above) -- this overlap simply has nothing to trigger it
+    // until a ranged enemy archetype starts pushing into `enemyBullets` via trackEnemyBullet()
+    // (not yet added; a future ticket).
+    this.physics.add.overlap(this.player, this.enemyBullets, (_playerObj, bulletObj) => {
+      (bulletObj as Bullet).destroy();
+      this.player.takeDamage((bulletObj as Bullet).damage);
     });
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<

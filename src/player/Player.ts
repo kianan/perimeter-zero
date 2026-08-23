@@ -13,8 +13,7 @@ export interface PlayerConfig {
   maxHp: number;
   speed: number;
   // From weapon.csv/weapon_scale.csv, resolved via the equipped weapon in player_state.json
-  // (see content/weapons.ts). Damage isn't here -- GameScene applies it directly in the
-  // bullet-enemy overlap, Player doesn't need to know its own bullet's damage.
+  // (see content/weapons.ts).
   fireRate: number; // shots/sec
   bulletSpeed: number;
   bulletLifespanMs: number;
@@ -23,6 +22,10 @@ export interface PlayerConfig {
   muzzleOffset: number;
   bulletScale: number;
   bulletRadius: number;
+  /** Damage dealt by bullets this weapon fires -- stamped onto each Bullet at construction
+   * (see Bullet.damage) so GameScene's overlap can read it off the bullet instead of a
+   * scene-level field. */
+  damage: number;
   onFire?: (bullet: Bullet) => void;
   onDeath?: () => void;
 }
@@ -48,6 +51,7 @@ export class Player extends Phaser.GameObjects.Container {
   private muzzleOffset: number;
   private bulletScale: number;
   private bulletRadius: number;
+  private bulletDamage: number;
   private onFire?: (bullet: Bullet) => void;
   private onDeath?: () => void;
 
@@ -70,6 +74,7 @@ export class Player extends Phaser.GameObjects.Container {
     this.muzzleOffset = config.muzzleOffset;
     this.bulletScale = config.bulletScale;
     this.bulletRadius = config.bulletRadius;
+    this.bulletDamage = config.damage;
     this.onFire = config.onFire;
     this.onDeath = config.onDeath;
     this.hp = this.maxHp;
@@ -142,6 +147,7 @@ export class Player extends Phaser.GameObjects.Container {
       lifespanMs: this.bulletLifespanMs,
       scale: this.bulletScale,
       radius: this.bulletRadius,
+      damage: this.bulletDamage,
     });
     this.onFire?.(bullet);
     playSfx(this.scene, 'bullet_fire');
