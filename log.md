@@ -61,3 +61,18 @@
 - `21:57:49` TICKET-019 pushback: TICKET-019 has no code left to change (no regression identified, and the `Player.ts` `amount <= 0` guard is already in place) — its acceptance criteria are runtime QA artifacts (tsc output, console/screenshot capture, `window.__qaGame` velocity trace) that only `adversarial_qa/qa_agent.py` can produce, per the Producer's clarification. My role here is scoped to editing project files and outputting FILE blocks or a PUSHBACK — I have no output channel to attach QA-run artifacts even if I invoke the script myself. Should the Producer (or whoever owns triggering `qa_agent.py`) kick off that QA pass and attach its results to this ticket directly, rather than routing it through the Senior Engineer's code-edit workflow?
 - `21:58:35` TICKET-019 pushback: This ticket requires runtime verification evidence (tsc --noEmit output, QA playthrough results per enemy type, console/screenshot capture from a full stage-1 run) that can't be produced by editing files — per the Producer's clarification, that evidence should come from an adversarial_qa/qa_agent.py pass, which is outside my role's file-editing scope; can someone with authority to invoke qa_agent.py kick off that run against this branch and attach its output (tsc log, console log, screenshots, the `window.__qaGame` velocity-magnitude trace) so TICKET-019 can be signed off?
 - `21:58:53` TICKET-019 escalated; Studio Head: skip
+- (manual) run/brief-2-enemies auto-merged to main (`728071d`) at end of run, per the
+  loop's own unconditional finish_run() behavior — same as core/loop.py, merge doesn't gate
+  on every ticket being accepted.
+- (manual) TICKET-019 marked done by Studio Head. The Engineer's own diagnosis was correct:
+  this ticket is pure runtime-QA evidence with no code to change, and no QA-runner step is
+  wired into this pipeline invocation (a real gap, not a stalled ticket) — same class of issue
+  CLAUDE.md already documents ("No runtime QA evidence... unless the project has its own
+  test/build commands"). While investigating, the Engineer found and fixed a real bug:
+  `Player.takeDamage()` didn't early-return on non-positive damage, so a Shooter's 0-damage
+  contact hit still re-armed the player's invuln window, letting it silently shield the player
+  from a Rusher's real damage (`9c10c37`). Studio Head verified the rest by code review
+  (archetypes.ts/characterAssets.ts art paths, spawnEnemy() wiring, Enemy.ts's baseSpeed
+  revert logic) — this session's Browser pane has a persistent WebGL fault unrelated to this
+  brief, so a live playthrough wasn't possible from here; still worth Studio Head's own
+  in-browser pass before fully signing off.
