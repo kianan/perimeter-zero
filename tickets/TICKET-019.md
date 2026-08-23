@@ -2,7 +2,7 @@
 id: TICKET-019
 title: Full regression pass + acceptance sign-off
 increment: 19
-status: in_progress
+status: blocked
 acceptance:
 - '`tsc --noEmit` passes with zero errors'
 - Manual/QA playthrough confirms rusher and swarm movement and contact-damage timing
