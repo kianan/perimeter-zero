@@ -4,15 +4,16 @@ import Phaser from 'phaser';
 export const ANIMS: Record<'idle' | 'walk', number> = { idle: 6, walk: 8 };
 export const LAYERS = ['body', 'weapon'] as const;
 export const RUSHER_DEATH_FRAMES = 10;
-// tank has no art of its own yet (see plan.md) -- its idle/walk/death loads below point at
-// rusher's existing PNG frame files as a placeholder sprite, same frame count as rusher.
 export const TANK_DEATH_FRAMES = 10;
+// shooter has real art (TICKET-018) -- same idle_0..5/walk_0..7/death_0..9 frame-count
+// convention as rusher, just its own asset folder.
+export const SHOOTER_DEATH_FRAMES = 10;
 export const PLAYER_DEATH_FRAMES = 10;
 export const SWARM_FLY_FRAMES = 6; // enemies/swarm/fly_0..5 -- one anim, no idle/walk/death split
 
-/** Loads every player (body/weapon), rusher, swarm, and tank frame, plus the bullet sprite.
- * Shared between GameScene and KitchenSinkScene so both use the exact same texture keys/anims
- * -- one source of truth instead of two copies drifting apart. */
+/** Loads every player (body/weapon), rusher, swarm, tank, and shooter frame, plus the bullet
+ * sprite. Shared between GameScene and KitchenSinkScene so both use the exact same texture
+ * keys/anims -- one source of truth instead of two copies drifting apart. */
 export function preloadCharacterAssets(scene: Phaser.Scene) {
   for (const layer of LAYERS) {
     for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
@@ -41,16 +42,28 @@ export function preloadCharacterAssets(scene: Phaser.Scene) {
     scene.load.image(`swarm_fly_${i}`, `assets/enemies/swarm/fly_${i}.png`);
   }
 
-  // No tank art exists yet -- reuse rusher's PNG frame files as tank's placeholder sprite
-  // (plan.md explicitly allows this). Texture keys are tank_-prefixed so archetypes.ts can
-  // reference them like any other enemy's own art once real tank art lands.
+  // Tank real art (TICKET-018): tank_-prefixed keys now load from tank's own asset folder
+  // instead of reusing rusher's PNG frame files. Key names/frame counts unchanged from the
+  // prior (rusher-placeholder) increment, so nothing downstream (archetypes.ts,
+  // createCharacterAnims below) needs to change.
   for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
     for (let i = 0; i < ANIMS[anim]; i++) {
-      scene.load.image(`tank_${anim}_${i}`, `assets/enemies/rusher/${anim}_${i}.png`);
+      scene.load.image(`tank_${anim}_${i}`, `assets/enemies/tank/${anim}_${i}.png`);
     }
   }
   for (let i = 0; i < TANK_DEATH_FRAMES; i++) {
-    scene.load.image(`tank_death_${i}`, `assets/enemies/rusher/death_${i}.png`);
+    scene.load.image(`tank_death_${i}`, `assets/enemies/tank/death_${i}.png`);
+  }
+
+  // Shooter real art (TICKET-018): shooter_-prefixed keys, own asset folder -- previously
+  // didn't exist at all (Shooter had no visuals of its own before this increment).
+  for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
+    for (let i = 0; i < ANIMS[anim]; i++) {
+      scene.load.image(`shooter_${anim}_${i}`, `assets/enemies/ranged/${anim}_${i}.png`);
+    }
+  }
+  for (let i = 0; i < SHOOTER_DEATH_FRAMES; i++) {
+    scene.load.image(`shooter_death_${i}`, `assets/enemies/ranged/death_${i}.png`);
   }
 
   scene.load.image('bullet', 'assets/weapons/projectiles/bullet.png');
@@ -116,6 +129,21 @@ export function createCharacterAnims(scene: Phaser.Scene) {
   scene.anims.create({
     key: 'tank_death',
     frames: Array.from({ length: TANK_DEATH_FRAMES }, (_, i) => ({ key: `tank_death_${i}` })),
+    frameRate: 15,
+    repeat: 0,
+  });
+
+  for (const anim of Object.keys(ANIMS) as (keyof typeof ANIMS)[]) {
+    scene.anims.create({
+      key: `shooter_${anim}`,
+      frames: Array.from({ length: ANIMS[anim] }, (_, i) => ({ key: `shooter_${anim}_${i}` })),
+      frameRate: anim === 'walk' ? 12 : 8,
+      repeat: -1,
+    });
+  }
+  scene.anims.create({
+    key: 'shooter_death',
+    frames: Array.from({ length: SHOOTER_DEATH_FRAMES }, (_, i) => ({ key: `shooter_death_${i}` })),
     frameRate: 15,
     repeat: 0,
   });
