@@ -200,7 +200,7 @@ export class GameScene extends Phaser.Scene {
 
     const remaining = Math.max(0, this.surviveSeconds - (this.time.now - this.roundStartTime) / 1000);
     this.hudText.setText(
-      `HP: ${this.player.getHp()}/${this.player.getMaxHp()}    Time: ${Math.ceil(remaining)}s`,
+      `Level: ${this.currentLevelId}\nTime: ${Math.ceil(remaining)}s\nHP: ${this.player.getHp()}/${this.player.getMaxHp()}`,
     );
     if (remaining <= 0) this.win();
   }
@@ -221,6 +221,14 @@ export class GameScene extends Phaser.Scene {
     if (this.currentLevelId !== FINAL_LEVEL_ID) {
       setLevelCompleted(Number(this.currentLevelId));
       this.currentLevelId = String(Number(this.currentLevelId) + 1);
+      // trackEnemy()'s DESTROY listener guards on roundOver to tell "the scene is tearing
+      // down, don't touch already-destroyed objects like DevLog's Text" apart from a real
+      // kill -- endRound() normally sets this, but a stage-advance restart bypasses
+      // endRound() entirely. Without this, scene.restart() below destroys every remaining
+      // live enemy, each DESTROY fires awardAugmentExp() -> logDev() against a Text object
+      // mid-teardown, and it throws (same crash the roundOver guard was originally added
+      // to prevent -- see trackEnemy()'s comment).
+      this.roundOver = true;
       this.scene.restart();
       return;
     }
