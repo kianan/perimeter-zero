@@ -3,7 +3,7 @@ id: TICKET-017
 title: 'GameScene wiring: spawn Shooter/Charger with real behavior + enemy weapon
   fire'
 increment: 17
-status: in_progress
+status: done
 acceptance:
 - '`tsc --noEmit` passes'
 - '`spawnEnemy()` passes `preferredRange`/`dashBurstMult`/`dashBurstMs`/`dashCooldownMs`
