@@ -385,6 +385,7 @@ export class GameScene extends Phaser.Scene {
 
   private openAugmentChoice(choices: { identity: AugmentIdentity; tier: AugmentTier }[]) {
     this.paused = true;
+    this.player.pause();
     this.physics.pause();
     playSfx(this, 'level_up');
 
@@ -416,6 +417,7 @@ export class GameScene extends Phaser.Scene {
 
   private resumeAfterAugmentChoice() {
     this.paused = false;
+    this.player.resume();
     this.physics.resume();
     this.checkAugmentLevelUp(); // augmentExp may already clear the next threshold too
   }
