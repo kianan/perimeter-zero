@@ -2,7 +2,7 @@
 id: TICKET-009
 title: Expand level.csv to 10 stages
 increment: 9
-status: in_progress
+status: done
 acceptance:
 - level.csv has 10 data rows with id values 1 through 10, no gaps or duplicates
 - Column values for rows 1-10 match the brief's table exactly (stage_name, duration,
