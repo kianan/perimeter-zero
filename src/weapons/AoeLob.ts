@@ -34,8 +34,8 @@ export interface AoeLobConfig {
 /** Type-A Augment mechanic ("aoe_lob" in augment_weapon.csv's `type` column -- see
  * brief-augment.md): either travels to a target point or is placed immediately (see
  * `config.travels`), sits with a fuse delay, then explodes, dealing damage in a radius.
- * Shared engine for every AoeLob-type Augment (Grenade, Frenade, Land Mine, and eventually
- * artillery strike/orbital strike/homing missile) -- was called Grenade until a second AoeLob
+ * Shared engine for every AoeLob-type Augment (Grenade, Land Mine, and eventually artillery
+ * strike/orbital strike/homing missile) -- was called Grenade until a second AoeLob
  * augment made that name dishonest. Placeholder visuals only (Phaser Shape circles, no new
  * art). Stats come from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts --
  * this class has no hardcoded numbers of its own. */
