@@ -2,7 +2,7 @@
 id: TICKET-010
 title: Expand level_enemies.csv spawn table for stages 1-10
 increment: 10
-status: in_progress
+status: blocked
 acceptance:
 - level_enemies.csv has exactly 3 rows (rusher/swarm/tank) for each level_id 1-10
   (30 data rows total)
