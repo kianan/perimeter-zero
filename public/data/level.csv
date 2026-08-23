@@ -8,4 +8,4 @@ id,stage_name,duration,special_spawn,world_size,spawn_offset,augment_exp_min_dro
 7,Stage 7,120,,3200,520,6,14
 8,Stage 8,130,,3400,540,7,15
 9,Stage 9,140,,3600,560,7,16
-10,Stage 10,150,,3800,580,8,18
+10,Stage 10,150,,3800,580,8,17
