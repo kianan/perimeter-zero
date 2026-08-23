@@ -1,2 +1,3 @@
 weapon_id,level,cost,damage,bullet_speed,fire_rate
 1,1,0,10,600,2
+2,1,0,8,450,1.2

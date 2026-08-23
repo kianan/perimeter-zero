@@ -2,6 +2,8 @@ level_id,enemy_id,spawn_rate,enemy_level
 1,rusher,3000,1
 1,swarm,4000,1
 1,tank,6000,1
+1,shooter,5000,1
+1,charger,5500,1
 2,rusher,2800,1
 2,swarm,3800,1
 2,tank,5800,1

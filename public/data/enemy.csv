@@ -1,4 +1,6 @@
-id,name,desc,type,asset,weapon,scale
-rusher,Rusher,Walks straight at the player,melee,enemies/rusher,,0.16
-swarm,Swarm,Flies in fast and erratic,swarm,enemies/swarm,,0.12
-tank,Tank,Lumbering bruiser that shrugs off damage,melee,enemies/tank,,0.20
+id,name,desc,type,asset,weapon,scale,preferred_range,dash_burst_mult,dash_burst_ms,dash_cooldown_ms
+rusher,Rusher,Walks straight at the player,melee,enemies/rusher,,0.16,0,0,0,0
+swarm,Swarm,Flies in fast and erratic,swarm,enemies/swarm,,0.12,0,0,0,0
+tank,Tank,Lumbering bruiser that shrugs off damage,melee,enemies/tank,,0.20,0,0,0,0
+shooter,Shooter,Keeps its distance and fires,ranged,enemies/shooter,2,0.16,350,0,0,0
+charger,Charger,Rushes in with sudden bursts of speed,melee,enemies/charger,,0.17,0,1.8,400,2200

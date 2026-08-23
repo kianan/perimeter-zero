@@ -38,6 +38,11 @@ const FINAL_LEVEL_ID = '10';
 
 const MAX_AUGMENT_CHOICES = 3;
 
+// enemy.csv's weapon FKs are always resolved at this weapon_scale.csv level -- enemy
+// difficulty scales via enemy_scale.csv's own `level` column (a separate namespace, see
+// content/levels.ts's LevelEnemySpawn doc), not via the weapon's level.
+const ENEMY_WEAPON_LEVEL = 1;
+
 /** One augment the player currently owns: which tier it's at, and the live timer firing it.
  * Replacing a tier (picking a child of the current one) removes the old timer and arms a
  * new one, since a child tier can have a different cooldown. */
@@ -51,6 +56,11 @@ export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
+  // Enemy-fired bullets (e.g. Shooter's ranged attack, see fireEnemyWeapon()), tracked
+  // separately from the player's own -- needs its own overlap handler targeting the player
+  // rather than enemies. Same push/splice-on-DESTROY pattern as `bullets`/`enemies` -- see
+  // trackEnemyBullet()/trackEnemy() below.
+  private enemyBullets: Bullet[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private hudText!: Phaser.GameObjects.Text;
   private roundStartTime = 0;
@@ -67,7 +77,9 @@ export class GameScene extends Phaser.Scene {
   // so the next create() naturally picks up stage N+1 -- see win().
   private currentLevelId!: string;
   // Resolved from weapon.csv/weapon_scale.csv via the equipped weapon in player_state.json --
-  // see content/weapons.ts and content/playerState.ts.
+  // see content/weapons.ts and content/playerState.ts. Passed into Player as its bullets'
+  // damage (see Player's `damage` config field / Bullet.damage) -- overlap callbacks read
+  // damage off the bullet itself now, not this field.
   private bulletDamage = 0;
   // From level.csv, resolved in create().
   private surviveSeconds = 0;
@@ -111,6 +123,7 @@ export class GameScene extends Phaser.Scene {
     // previous run.
     this.enemies = [];
     this.bullets = [];
+    this.enemyBullets = [];
     this.roundOver = false;
     this.paused = false;
     this.augmentExp = 0;
@@ -147,6 +160,7 @@ export class GameScene extends Phaser.Scene {
       muzzleOffset: weapon.muzzleOffset,
       bulletScale: weapon.bulletScale,
       bulletRadius: weapon.bulletRadius,
+      damage: this.bulletDamage,
       onFire: (bullet) => this.trackBullet(bullet),
       onDeath: () => this.gameOver(),
     });
@@ -167,10 +181,16 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.bullets, this.enemies, (bulletObj, enemyObj) => {
       (bulletObj as Bullet).destroy();
-      (enemyObj as Enemy).takeDamage(this.bulletDamage);
+      (enemyObj as Enemy).takeDamage((bulletObj as Bullet).damage);
     });
     this.physics.add.overlap(this.player, this.enemies, (_playerObj, enemyObj) => {
       this.player.takeDamage((enemyObj as Enemy).damage);
+    });
+    // Shooter (and any future ranged archetype) pushes its fired bullets into `enemyBullets`
+    // via fireEnemyWeapon() -> trackEnemyBullet() below.
+    this.physics.add.overlap(this.player, this.enemyBullets, (_playerObj, bulletObj) => {
+      (bulletObj as Bullet).destroy();
+      this.player.takeDamage((bulletObj as Bullet).damage);
     });
 
     this.keys = this.input.keyboard!.addKeys('W,A,S,D') as Record<
@@ -314,7 +334,11 @@ export class GameScene extends Phaser.Scene {
    * ring distance, clamped inside the world bounds so it can't land off the playable ground.
    * Dispatches on enemyId: archetypes.ts supplies the visuals, enemy.csv/enemy_scale.csv
    * (via content/enemies.ts) supply the stats -- adding a new archetype needs a CSV row +
-   * an archetypes.ts entry, not a new spawn* method. */
+   * an archetypes.ts entry, not a new spawn* method. preferredRange/dashBurst* are passed
+   * through for every archetype (defaulting to enemy.csv's 0 for rusher/swarm/tank, so their
+   * behavior is unchanged); startDashCycle() only actually runs for archetypes whose
+   * dashBurstMult > 0 (e.g. charger), and fireEnemyWeapon() only arms for archetypes with a
+   * non-blank weapon FK (e.g. shooter). */
   private spawnEnemy(enemyId: string, level: number) {
     if (this.roundOver || this.paused) return;
     const archetype = ENEMY_ARCHETYPES[enemyId];
@@ -326,14 +350,58 @@ export class GameScene extends Phaser.Scene {
     const angle = Math.random() * Math.PI * 2;
     const x = Phaser.Math.Clamp(this.player.x + Math.cos(angle) * this.spawnOffset, 0, this.worldSize);
     const y = Phaser.Math.Clamp(this.player.y + Math.sin(angle) * this.spawnOffset, 0, this.worldSize);
-    this.trackEnemy(
-      new Enemy(this, x, y, archetype, {
-        hp: stats.health,
-        speed: stats.speed,
-        damage: stats.damage,
-        scale: stats.scale,
-      }),
-    );
+    const enemy = new Enemy(this, x, y, archetype, {
+      hp: stats.health,
+      speed: stats.speed,
+      damage: stats.damage,
+      scale: stats.scale,
+      preferredRange: stats.preferredRange,
+      dashBurstMult: stats.dashBurstMult,
+      dashBurstMs: stats.dashBurstMs,
+      dashCooldownMs: stats.dashCooldownMs,
+      weaponId: stats.weapon,
+    });
+    this.trackEnemy(enemy);
+
+    if (stats.dashBurstMult > 0) {
+      enemy.startDashCycle();
+    }
+    if (stats.weapon) {
+      this.fireEnemyWeapon(enemy);
+    }
+  }
+
+  /** Arms a repeating fire timer for a ranged enemy (non-blank enemy.csv `weapon` FK, e.g.
+   * shooter) -- interval is `1000 / fireRate`, same derivation Player.ts's constructor uses
+   * for the player's own auto-fire. Each tick spawns a Bullet at the enemy's current position
+   * aimed at the player's current position (not a fixed angle at spawn time -- the player
+   * moves), carrying the resolved weapon's damage, and tracks it into `enemyBullets` so the
+   * player-vs-enemyBullets overlap (see create()) can damage the player on hit. Stops
+   * spawning new bullets once the enemy is dying (same `dying` guard chase() checks), and the
+   * timer itself is torn down once the enemy is actually destroyed. */
+  private fireEnemyWeapon(enemy: Enemy) {
+    const weapon = getWeapon(this, enemy.weaponId, ENEMY_WEAPON_LEVEL);
+    const fireIntervalMs = 1000 / weapon.fireRate;
+
+    const timer = this.time.addEvent({
+      delay: fireIntervalMs,
+      loop: true,
+      callback: () => {
+        if (enemy.isDying()) return;
+        const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+        const bullet = new Bullet(this, enemy.x, enemy.y, {
+          angle,
+          speed: weapon.bulletSpeed,
+          lifespanMs: weapon.lifespanMs,
+          scale: weapon.bulletScale,
+          radius: weapon.bulletRadius,
+          damage: weapon.damage,
+        });
+        this.trackEnemyBullet(bullet);
+      },
+    });
+
+    enemy.once(Phaser.GameObjects.Events.DESTROY, () => timer.remove());
   }
 
   /** Fires one activation of an AoeLob-type Augment: tier.explosionCount independently
@@ -401,6 +469,17 @@ export class GameScene extends Phaser.Scene {
     bullet.once(Phaser.GameObjects.Events.DESTROY, () => {
       const i = this.bullets.indexOf(bullet);
       if (i !== -1) this.bullets.splice(i, 1);
+    });
+  }
+
+  /** Same push/splice-on-DESTROY pattern as trackBullet(), for enemy-fired bullets (see
+   * fireEnemyWeapon()) -- kept as a separate array/method since it backs the
+   * player-vs-enemyBullets overlap rather than the bullets-vs-enemies one. */
+  private trackEnemyBullet(bullet: Bullet) {
+    this.enemyBullets.push(bullet);
+    bullet.once(Phaser.GameObjects.Events.DESTROY, () => {
+      const i = this.enemyBullets.indexOf(bullet);
+      if (i !== -1) this.enemyBullets.splice(i, 1);
     });
   }
 

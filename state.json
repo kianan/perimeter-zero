@@ -1,72 +1,81 @@
 {
   "status": "done",
-  "brief": "brief-10-levels",
+  "brief": "brief-2-enemies",
   "increments": [
     {
-      "title": "Enemy scale tiers 2-5 (rusher/swarm/tank)",
-      "description": "Add tiers 2-5 for each of rusher/swarm/tank to enemy_scale.csv, applying the GDD's +25%-per-level growth rule to damage/health/speed off each enemy's existing tier-1 row (placeholder curve, no new enemies, no tiers past 5).",
+      "title": "Bullet damage field + enemy-bullet damage path",
+      "description": "Shared prerequisite: give bullets their own damage value instead of relying on the scene-level weapon damage, and add the missing enemy-to-player damage path. Add `damage: number` to `BulletConfig` and store it as a public readonly field on `Bullet` (Bullet.ts). Update `Player.ts`'s `onFire` to pass `damage: this.bulletDamage` when constructing the player's bullets. Change `GameScene`'s existing player-bullet/enemy overlap to read `(bulletObj as Bullet).damage` instead of `this.bulletDamage`. Add `private enemyBullets: Bullet[] = []` to `GameScene`, reset it in `create()` alongside the other arrays, and add a new `physics.add.overlap(this.player, this.enemyBullets, ...)` that destroys the bullet and calls `this.player.takeDamage((bulletObj as Bullet).damage)`. No enemy fires bullets yet in this increment.",
       "acceptance": [
-        "enemy_scale.csv contains exactly 5 rows each for rusher, swarm, and tank (15 rows total plus header), tier values 1-5",
-        "For each enemy, tier N's damage and health are ~1.25x tier N-1's (rounded), matching the compounding pattern shown in the brief's rusher/swarm example rows",
-        "Tier 1 rows for all three enemies are unchanged from current values",
-        "No enemy has a row with level > 5"
+        "`tsc --noEmit` passes",
+        "`BulletConfig` has a `damage: number` field and `Bullet` exposes it as a public readonly property",
+        "`Player.ts`'s `onFire` passes `damage: this.bulletDamage` when constructing bullets",
+        "GameScene's player-bullet/enemy overlap callback reads `(bulletObj as Bullet).damage` and no longer references the old scene-level `this.bulletDamage` field at that call site",
+        "GameScene declares `private enemyBullets: Bullet[] = []`, resets it in `create()`, and registers a `physics.add.overlap(this.player, this.enemyBullets, ...)` handler that destroys the bullet and calls `this.player.takeDamage(bulletDamage)`",
+        "Firing the player's current weapon deals exactly the same damage as before this change (regression check)"
       ]
     },
     {
-      "title": "Expand level.csv to 10 stages",
-      "description": "Add rows for id 2-10 to level.csv using the exact placeholder values given in the brief (duration/world_size/spawn_offset/exp scaling up modestly per stage), leaving special_spawn blank for all rows.",
+      "title": "CSV data model + ResolvedEnemy pass-through for Shooter/Charger",
+      "description": "Add the new archetypes' data with no behavior change yet. Append the `shooter`/`charger` rows to `enemy.csv` with the new columns (`preferred_range`, `dash_burst_mult`, `dash_burst_ms`, `dash_cooldown_ms`), defaulted to 0/blank for the 3 existing rows. Append weapon id `2` to `weapon.csv` and `weapon_scale.csv` per the brief's exact rows. Add `shooter,1,...` and `charger,1,...` rows to `enemy_scale.csv` (shooter damage = 0). Extend the `ResolvedEnemy` interface in `content/enemies.ts` to include the new fields (same pattern as the already-unused `weapon`/`type` fields) so `getEnemy()` returns them, without yet wiring them into `Enemy`/`GameScene`.",
       "acceptance": [
-        "level.csv has 10 data rows with id values 1 through 10, no gaps or duplicates",
-        "Column values for rows 1-10 match the brief's table exactly (stage_name, duration, world_size, spawn_offset, augment_exp_min_drop, augment_exp_max_drop)",
-        "special_spawn column is empty for all 10 rows",
-        "CSV header/column order is unchanged from the current file"
+        "`tsc --noEmit` passes",
+        "`enemy.csv` has `shooter` and `charger` rows matching the brief's values, and the 3 existing rows have 0/blank in all 4 new columns",
+        "`weapon.csv` and `weapon_scale.csv` each have a new row with id `2` matching the brief's values",
+        "`enemy_scale.csv` has `shooter,1,0,15,90` and `charger,1,18,25,140` rows",
+        "`ResolvedEnemy` in `content/enemies.ts` includes `preferred_range`, `dash_burst_mult`, `dash_burst_ms`, `dash_cooldown_ms` typed as numbers, and `getEnemy('shooter')`/`getEnemy('charger')` return the correct parsed values",
+        "No existing call site of `getEnemy()` is broken by the interface change"
       ]
     },
     {
-      "title": "Expand level_enemies.csv spawn table for stages 1-10",
-      "description": "Add spawn rows for level_id 2-10 (rusher/swarm/tank each) following the brief's interpolation: spawn_rate trending down per stage, enemy_level stepping up roughly every 2 stages, capped at tier 5 (the ceiling added in increment 1). Fill in the unspecified stages 4-9 consistent with the given stage 1-3 and stage 10 anchors.",
+      "title": "Enemy.ts: preferred-range stand-off + dash-burst cycle",
+      "description": "Add the two new core behaviors to `Enemy.ts` without wiring them to spawning yet. Constructor gains `preferredRange`, `dashBurstMult`, `dashBurstMs`, `dashCooldownMs` on `EnemyStats`, all defaulting to 0 so the 3 existing spawn calls are unaffected. `chase(targetX, targetY)`: when `preferredRange > 0` and `dist <= preferredRange`, zero velocity and play idle anim instead of continuing to close in; `dist > preferredRange` is unchanged. Add `startDashCycle()`: a repeating `scene.time.addEvent` at `dashCooldownMs` that tints the sprite (reusing the hit-flash tint call with a different color) and multiplies `this.speed` by `dashBurstMult` for `dashBurstMs` before reverting both tint and speed. `startDashCycle()` is not yet called by anything.",
       "acceptance": [
-        "level_enemies.csv has exactly 3 rows (rusher/swarm/tank) for each level_id 1-10 (30 data rows total)",
-        "Every enemy_level value in the file is between 1 and 5 inclusive (no reference to a nonexistent tier 6+)",
-        "spawn_rate values are non-increasing (or trending down) across ascending level_id for each enemy_id",
-        "Stage 1, 2, 3, and 10 rows match the brief's explicit example values exactly",
-        "The enemy_level column name is unchanged (not renamed) and a comment exists in the CSV or adjacent doc noting it's a distinct namespace from level.csv's id"
+        "`tsc --noEmit` passes",
+        "`EnemyStats`/`Enemy` constructor accepts `preferredRange`, `dashBurstMult`, `dashBurstMs`, `dashCooldownMs`, all defaulting to 0",
+        "`chase()` stops the enemy (zero velocity, idle anim) when `preferredRange > 0 && dist <= preferredRange`, and is byte-for-byte equivalent to prior behavior when `preferredRange === 0`",
+        "`startDashCycle()` exists, uses `scene.time.addEvent` at `dashCooldownMs`, applies a distinct tint and multiplies `this.speed` by `dashBurstMult` for `dashBurstMs`, then reverts both",
+        "Existing rusher/swarm/tank spawns (all `preferredRange === 0`, no dash fields set) are unaffected \u2014 no call to `startDashCycle()` exists yet"
       ]
     },
     {
-      "title": "Wire levelCompleted read/write in player state",
-      "description": "Add (or confirm/extend) a read/write path in content/playerState.ts so levelCompleted can be persisted via localStorage (this is a pure client-side Vite/Phaser bundle -- no Node fs/backend to write player_state.json to disk from browser code; the Engineer correctly pushed back on the original file-write framing). No GameScene changes yet \u2014 this increment only makes persistence possible and independently testable.",
+      "title": "GameScene wiring: spawn Shooter/Charger with real behavior + enemy weapon fire",
+      "description": "Wire the previous two increments together so Shooter and Charger are actually playable. In `spawnEnemy()`, read the new `enemy.csv` fields via `getEnemy()`, pass them into the `Enemy` constructor, and call `startDashCycle()` when `dashBurstMult > 0`. Add `fireEnemyWeapon(enemy: Enemy)`: for a spawned enemy with a non-blank `weapon` FK, arm a `scene.time.addEvent` at the `1000 / fireRate`-derived interval (mirroring `Player.ts`) that spawns a `Bullet` (with `damage` from the resolved weapon) aimed from the enemy toward the player's current position, pushed into `this.enemyBullets`; stop firing once the enemy is `dying` (same guard `chase()` uses). Add `shooter`/`charger` entries to `archetypes.ts` using placeholder art reuse for both for now (real art swap is the next increment). Add `1,shooter,5000,1` and `1,charger,5500,1` to `level_enemies.csv` so both are reachable for manual QA.",
       "acceptance": [
-        "content/playerState.ts exports a function that reads levelCompleted from localStorage if present, falling back to player_state.json's baked-in value (currently 0) if localStorage has nothing set yet",
-        "content/playerState.ts exports a function that writes an updated levelCompleted value to localStorage",
-        "Calling the write function then calling the read function returns the newly written value, not the player_state.json fallback",
-        "No other fields read from player_state.json (mainWeapon, playerLevel) change behavior",
-        "tsc --noEmit passes"
+        "`tsc --noEmit` passes",
+        "`spawnEnemy()` passes `preferredRange`/`dashBurstMult`/`dashBurstMs`/`dashCooldownMs` from `getEnemy()` into the `Enemy` constructor, and calls `startDashCycle()` only when `dashBurstMult > 0`",
+        "`fireEnemyWeapon(enemy)` exists, is invoked for spawned enemies with a non-blank `weapon` FK, spawns `Bullet`s into `this.enemyBullets` aimed at the player at the correct fire-rate interval, and stops once the enemy is `dying`",
+        "Spawned Shooter stops at `preferred_range` instead of walking into the player, and standing still next to it with no bullet in flight deals no contact damage to the player (its `enemy_scale.csv` damage is 0)",
+        "Shooter's fired bullets damage the player on hit and are destroyed/expire otherwise",
+        "Spawned Charger periodically speeds up then returns to normal pace; `window.__qaGame` shows its velocity magnitude actually increases during a burst window",
+        "`level_enemies.csv` contains the `shooter`/`charger` rows for stage 1",
+        "Existing rusher/swarm spawn behavior is unchanged (regression check)"
       ]
     },
     {
-      "title": "GameScene progression: advance through stages 1-10",
-      "description": "Replace the hardcoded module-level LEVEL_ID constant with an instance field currentLevelId, initialized from content/playerState.ts's levelCompleted read (localStorage-backed, +1, clamped to '1'). Update win() so stages 1-9 persist levelCompleted via the write path from the previous increment, increment currentLevelId, and restart the scene instead of ending the run; stage 10 keeps today's endRound(true) behavior. endRound(false) remains unchanged (no advance, no persist).",
+      "title": "Real art: Shooter frames + Tank art swap",
+      "description": "Swap placeholder art for the two archetypes that now have real sprites. In `archetypes.ts`, point Shooter's `shooter_*` texture keys at `assets/enemies/ranged/*.png` (same `idle_0..5`/`walk_0..7`/`death_0..9` frame-count convention as rusher) instead of the rusher placeholder used in the previous increment. Charger keeps reusing `assets/enemies/rusher/*.png` under `charger_*` keys (still no real art \u2014 out of scope). Separately in `characterAssets.ts`, swap Tank's load paths from `assets/enemies/rusher/${anim}_${i}.png` to `assets/enemies/tank/${anim}_${i}.png`, keeping the same `tank_` key names and same `ANIMS`/`TANK_DEATH_FRAMES` counts.",
       "acceptance": [
-        "tsc --noEmit passes",
-        "GameScene.ts no longer has a module-level `const LEVEL_ID = '1'`; currentLevelId is a private instance field",
-        "currentLevelId's initial value is computed from content/playerState.ts's levelCompleted read + 1, clamped to '1' when that value is 0 or less",
-        "win() when currentLevelId < '10' calls the localStorage write path from content/playerState.ts, increments currentLevelId, and calls this.scene.restart() without calling endRound(true)",
-        "win() when currentLevelId === '10' calls endRound(true) exactly as before, with no persistence of a stage beyond 10",
-        "endRound(false) (death path) contains no calls to the levelCompleted write path and no currentLevelId increment"
+        "`tsc --noEmit` passes",
+        "`archetypes.ts` loads `shooter_*` keys from `assets/enemies/ranged/*.png`, not from a rusher path",
+        "`archetypes.ts` still loads `charger_*` keys from `assets/enemies/rusher/*.png` (placeholder retained)",
+        "`characterAssets.ts` loads all `tank_*` keys from `assets/enemies/tank/${anim}_${i}.png` with unchanged key names and frame counts",
+        "Spawning a Shooter or a Tank produces no missing-texture warnings in the console",
+        "Tank's stats/movement behavior is unchanged from before this increment (visual-only change)"
       ]
     },
     {
-      "title": "End-to-end progression verification",
-      "description": "Manual/scripted pass confirming the full acceptance criteria from the brief across the wired system: fresh-save stage advance, full run to stage 10 win, death non-persistence, and resume-from-save behavior.",
+      "title": "Full regression pass + acceptance sign-off",
+      "description": "Final verification pass across the whole brief with no further code changes expected unless a regression is found. Confirm end-to-end: rusher and swarm are pixel-for-pixel unchanged from before this brief; Tank's behavior (stats/movement) is unchanged while its appearance now uses real sprite frames; player-fired bullets still deal exactly the same damage as before the `Bullet.damage` refactor; Shooter and Charger both spawn via `level_enemies.csv` and behave per their acceptance criteria; no missing-texture warnings anywhere in a full playthrough of stage 1.",
       "acceptance": [
-        "tsc --noEmit passes",
-        "Starting from a fresh save (levelCompleted: 0), surviving Stage 1's timer transitions to Stage 2 with visibly different world_size/spawn_rate/enemy tier per the CSVs, and no 'You Won' popup appears",
-        "Surviving through to Stage 10 shows the existing 'You Won' GameEndPopup and the run ends",
-        "Dying mid-run (endRound(false)) leaves the persisted levelCompleted (localStorage) unchanged from its pre-run value",
-        "After a run persists levelCompleted > 0, restarting the app resumes at the next uncleared stage (verified via localStorage or window.__qaGame), not Stage 1"
+        "`tsc --noEmit` passes with zero errors",
+        "Manual/QA playthrough confirms rusher and swarm movement and contact-damage timing are identical to pre-brief behavior",
+        "Tank spawns with `assets/enemies/tank/*.png` frames, identical stats/movement to before, no missing-texture warnings",
+        "Shooter spawns, stands off at `preferred_range`, fires damaging bullets, deals no contact damage while idle next to the player, and renders `assets/enemies/ranged/*.png` frames",
+        "Charger spawns, visibly tint-flashes and speeds up on a cycle (confirmed via `window.__qaGame` velocity magnitude), then returns to normal pace",
+        "Player-fired bullet damage matches pre-refactor values exactly",
+        "No console errors or missing-texture warnings during a full stage-1 run covering all 5 enemy types"
       ]
     }
   ],
-  "current": 13
+  "current": 19
 }
