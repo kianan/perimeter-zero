@@ -93,7 +93,19 @@ export class Player extends Phaser.GameObjects.Container {
     this.bodySprite.play('body_idle');
     this.weaponSprite.play('weapon_idle');
 
-    this.scene.events.on('update', this.update, this);
+    // Container isn't part of the display list's own update cycle, hence hooking the
+    // scene's update event directly instead -- but that means it's a manually-registered
+    // listener, not something Phaser cleans up automatically alongside this GameObject's
+    // own destroy. Without the matching .off() below, a torn-down scene (any scene.restart(),
+    // not just death/win) leaves this listener attached; it keeps firing update() against a
+    // GameObject whose own `this.scene` is already gone, throwing on the first `this.scene.
+    // cameras` read. Captures `scene` (the constructor param) rather than `this.scene` for
+    // the .off() call, since `this.scene` itself may already be cleared by the time DESTROY
+    // fires.
+    scene.events.on('update', this.update, this);
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      scene.events.off('update', this.update, this);
+    });
     const fireIntervalMs = 1000 / config.fireRate;
     scene.time.addEvent({ delay: fireIntervalMs, loop: true, callback: () => this.fire() });
   }

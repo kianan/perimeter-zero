@@ -1,2 +1,11 @@
 id,stage_name,duration,special_spawn,world_size,spawn_offset,augment_exp_min_drop,augment_exp_max_drop
 1,Stage 1,60,,2000,400,3,8
+2,Stage 2,70,,2200,420,4,9
+3,Stage 3,80,,2400,440,4,10
+4,Stage 4,90,,2600,460,5,11
+5,Stage 5,100,,2800,480,5,12
+6,Stage 6,110,,3000,500,6,13
+7,Stage 7,120,,3200,520,6,14
+8,Stage 8,130,,3400,540,7,15
+9,Stage 9,140,,3600,560,7,16
+10,Stage 10,150,,3800,580,8,17

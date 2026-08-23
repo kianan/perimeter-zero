@@ -21,6 +21,12 @@ export interface ResolvedLevel {
   augmentExpMaxDrop: number;
 }
 
+// Note on public/data/level_enemies.csv's `enemy_level` column: it indexes into
+// enemy_scale.csv's own `level` column (an enemy archetype's difficulty tier, 1-5, capped
+// by the enemy_scale.csv ceiling added alongside this data). It is NOT a reference to
+// level.csv's `id` column (which stage/round this is) -- those are two unrelated numbering
+// schemes that happen to share the word "level". Don't conflate a level_id=3 row's
+// enemy_level=2 with "level.csv row 2".
 export interface LevelEnemySpawn {
   enemyId: string;
   spawnRate: number;
