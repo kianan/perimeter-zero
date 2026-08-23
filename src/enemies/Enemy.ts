@@ -24,6 +24,10 @@ export interface EnemyStats {
   dashBurstMult?: number;
   dashBurstMs?: number;
   dashCooldownMs?: number;
+  // enemy.csv's `weapon` FK -- blank for melee/swarm archetypes with no ranged attack.
+  // Stored so GameScene.fireEnemyWeapon() can resolve it off the Enemy instance itself
+  // (its signature only takes the Enemy, not a separately-threaded weapon id).
+  weaponId?: string;
 }
 
 /**
@@ -33,8 +37,9 @@ export interface EnemyStats {
  * + an archetypes.ts entry, not a new Enemy subclass -- see workspace/onslaught/plan.md.
  *
  * `preferredRange` (chase() stand-off) and the dash-burst cycle (startDashCycle()) are the
- * two new core behaviors for ranged/charger-style archetypes (TICKET-016) -- neither is
- * wired to spawning yet, that's a follow-up ticket.
+ * two core behaviors for ranged/charger-style archetypes, wired to spawning by
+ * GameScene.spawnEnemy() (TICKET-017). `weaponId` (see EnemyStats) is read by
+ * GameScene.fireEnemyWeapon() to arm a ranged enemy's fire timer.
  */
 export class Enemy extends Phaser.GameObjects.Container {
   private bodySprite: Phaser.GameObjects.Sprite;
@@ -53,6 +58,9 @@ export class Enemy extends Phaser.GameObjects.Container {
   private readonly dashCooldownMs: number;
   /** Contact damage dealt to the player on touch -- read by GameScene's player-enemy overlap. */
   readonly damage: number;
+  /** enemy.csv's `weapon` FK, blank if this archetype doesn't fire a weapon -- read by
+   * GameScene.fireEnemyWeapon() to resolve the weapon's stats. */
+  readonly weaponId: string;
 
   constructor(
     scene: Phaser.Scene,
@@ -70,6 +78,7 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.dashBurstMult = stats.dashBurstMult ?? 0;
     this.dashBurstMs = stats.dashBurstMs ?? 0;
     this.dashCooldownMs = stats.dashCooldownMs ?? 0;
+    this.weaponId = stats.weaponId ?? '';
 
     this.bodySprite = scene.add.sprite(0, 0, archetype.initialTexture).setScale(stats.scale);
     this.add(this.bodySprite);
@@ -120,6 +129,14 @@ export class Enemy extends Phaser.GameObjects.Container {
     }
   }
 
+  /** True once this enemy has begun its death sequence -- same flag chase() checks before
+   * moving. Exposed so GameScene.fireEnemyWeapon()'s fire-timer callback can stop spawning
+   * new bullets the instant death starts, even though that timer isn't gated by the
+   * enemies[] list the way chase()'s per-frame loop is. */
+  isDying(): boolean {
+    return this.dying;
+  }
+
   /** Steers straight toward (targetX, targetY) -- e.g. the player's position. Ranged/charger
    * archetypes with a preferredRange > 0 (see EnemyStats) hold station instead of closing
    * the last of the distance once within that range -- everything else (preferredRange === 0,
@@ -151,9 +168,8 @@ export class Enemy extends Phaser.GameObjects.Container {
    * from the hit-flash color) and multiplies this.speed by dashBurstMult for dashBurstMs,
    * then reverts both tint and speed. Purely a self-contained speed/visual modifier --
    * chase() just reads whatever this.speed currently is, so a burst in progress
-   * transparently speeds up the existing chase (or stand-off) motion. Not called by
-   * anything yet -- wiring a dash-capable archetype (e.g. charger) to actually invoke this
-   * is a follow-up ticket. */
+   * transparently speeds up the existing chase (or stand-off) motion. Called by
+   * GameScene.spawnEnemy() for any archetype whose dashBurstMult > 0 (e.g. charger). */
   startDashCycle() {
     this.scene.time.addEvent({
       delay: this.dashCooldownMs,

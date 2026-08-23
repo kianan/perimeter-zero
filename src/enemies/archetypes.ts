@@ -35,4 +35,21 @@ export const ENEMY_ARCHETYPES: Record<string, EnemyArchetype> = {
     moveAnim: 'tank_walk',
     deathAnim: 'tank_death',
   },
+  // Shooter/Charger (TICKET-017): behavior is real (preferredRange stand-off + ranged fire
+  // for shooter, dash-burst cycle for charger -- see Enemy.ts/GameScene.spawnEnemy()), but
+  // neither has its own art yet. Reusing rusher's already-loaded texture/anim keys directly
+  // (same placeholder-reuse approach tank takes above) rather than adding new
+  // shooter_-/charger_-prefixed preloads -- real art swap is the next increment.
+  shooter: {
+    initialTexture: 'rusher_idle_0',
+    idleAnim: 'rusher_idle',
+    moveAnim: 'rusher_walk',
+    deathAnim: 'rusher_death',
+  },
+  charger: {
+    initialTexture: 'rusher_idle_0',
+    idleAnim: 'rusher_idle',
+    moveAnim: 'rusher_walk',
+    deathAnim: 'rusher_death',
+  },
 };
