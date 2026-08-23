@@ -2,7 +2,7 @@
 id: TICKET-008
 title: Enemy scale tiers 2-5 (rusher/swarm/tank)
 increment: 8
-status: in_progress
+status: done
 acceptance:
 - enemy_scale.csv contains exactly 5 rows each for rusher, swarm, and tank (15 rows
   total plus header), tier values 1-5
