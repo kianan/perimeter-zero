@@ -2,7 +2,7 @@
 id: TICKET-021
 title: Generic preload of object sprite + explosion frame images
 increment: 21
-status: in_progress
+status: done
 acceptance:
 - content/augments.ts contains a loop over parsed augment identities that issues one
   scene.load.image call for the object sprite and explosionFrameCount calls for explosion
