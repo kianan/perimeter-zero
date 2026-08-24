@@ -76,3 +76,4 @@
   revert logic) — this session's Browser pane has a persistent WebGL fault unrelated to this
   brief, so a live playthrough wasn't possible from here; still worth Studio Head's own
   in-browser pass before fully signing off.
+- `22:21:07` ingested brief 'brief-augment-art'
