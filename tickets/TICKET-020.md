@@ -2,7 +2,7 @@
 id: TICKET-020
 title: CSV columns + AugmentIdentity parsing
 increment: 20
-status: in_progress
+status: blocked
 acceptance:
 - augment_weapon.csv header includes asset,explosion_asset,explosion_frame_count and
   the Grenade/Land Mine rows contain exactly the values from the brief (weapons/augments/grenade/grenade,
