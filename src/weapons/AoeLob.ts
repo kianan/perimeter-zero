@@ -72,9 +72,10 @@ export interface AoeLobConfig {
  * (TICKET-023: texture `config.textureKey`, tinted `config.color`, scaled off
  * `config.visualRadius`) and, on detonation, as that same identity's real explosion
  * animation (TICKET-024: texture `config.explosionTextureKey`, tinted
- * `config.explosionColor`, playing `config.explosionAnimKey`, scaled off
- * `config.visualRadius` the same way the object sprite is, so the blast doesn't visually
- * overshoot the real hit area) -- augment_weapon.csv's
+ * `config.explosionColor`, playing `config.explosionAnimKey`, scaled off `config.radius` --
+ * the real AoE damage radius, not `visualRadius` (the much smaller in-flight object's own
+ * footprint) -- so the blast visually matches where damage actually registers) --
+ * augment_weapon.csv's
  * `asset`/`color`/`visual_radius`/`explosion_asset`/`explosion_color`/`deploy_sfx` columns
  * are the only thing that changes what any given augment looks and sounds like. Stats come
  * from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this class has
@@ -117,7 +118,6 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     const {
       radius,
       onExplode,
-      visualRadius,
       explosionColor,
       explosionVisualMs,
       explosionTextureKey,
@@ -132,11 +132,16 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     // Real per-identity explosion art (TICKET-024) -- textured with this identity's first
     // explosion frame, tinted config.explosionColor, then handed off to .play() to run the
     // full animation (a 7-frame Grenade blast looks nothing like a 10-frame Land Mine blast,
-    // not just the same shape tinted two ways). Scaled off `visualRadius`, the same way the
-    // in-flight object sprite is scaled (see constructor above), so the blast doesn't
-    // visually overshoot the real hit area.
+    // not just the same shape tinted two ways). Scaled off `radius` (the real AoE damage
+    // radius passed to onExplode above), NOT `visualRadius` -- visualRadius is the in-flight
+    // object's own small footprint (constructor above), and is much smaller than the actual
+    // hit area. Studio Head fix, 2026-08-24: TICKET-024's own acceptance criteria said
+    // visualRadius, which the automated reviewer's first pass correctly flagged as an
+    // undershoot bug (blast renders far smaller than where damage actually registers) before
+    // the ticket's literal wording forced a revert back to it -- the brief itself was wrong
+    // here, not the code.
     const blast = scene.add.sprite(x, y, explosionTextureKey).setTint(explosionColor);
-    blast.setDisplaySize(visualRadius * 2, visualRadius * 2);
+    blast.setDisplaySize(radius * 2, radius * 2);
     const fullScaleX = blast.scaleX;
     const fullScaleY = blast.scaleY;
     blast.setScale(fullScaleX * EXPLOSION_START_SCALE, fullScaleY * EXPLOSION_START_SCALE);
