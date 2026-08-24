@@ -21,6 +21,16 @@ export interface AoeLobConfig {
    * unconditionally, so augment_weapon_scale.csv's own `travels` column was silently ignored
    * even though it was already being parsed (content/augments.ts's AugmentTier.travels). */
   travels: boolean;
+  /** Texture key for the thrown/placed object sprite -- `augment_${identity.id}_object`,
+   * loaded by content/augments.ts's loadAugmentAssets() (TICKET-021). Which PNG that
+   * resolves to (grenade.png, landmine.png, ...) is entirely data-driven off
+   * augment_weapon.csv's `asset` column -- this class has no per-identity branching. */
+  textureKey: string;
+  /** Real-world "radius" this object should visually read as -- diameter (2x this) is used
+   * as the sprite's on-screen size via setDisplaySize(), so a bigger visual_radius CSV value
+   * renders a physically bigger object regardless of the source PNG's native pixel size
+   * (TICKET-023: previously this doubled as the Arc primitive's actual radius; now it drives
+   * scale on a real sprite instead). */
   visualRadius: number;
   color: number;
   explosionColor: number;
@@ -36,13 +46,24 @@ export interface AoeLobConfig {
  * `config.travels`), sits with a fuse delay, then explodes, dealing damage in a radius.
  * Shared engine for every AoeLob-type Augment (Grenade, Land Mine, and eventually artillery
  * strike/orbital strike/homing missile) -- was called Grenade until a second AoeLob
- * augment made that name dishonest. Placeholder visuals only (Phaser Shape circles, no new
- * art). Stats come from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts --
- * this class has no hardcoded numbers of its own. */
-export class AoeLob extends Phaser.GameObjects.Arc {
+ * augment made that name dishonest. Renders as the augment's real object sprite (TICKET-023:
+ * texture `config.textureKey`, tinted `config.color`, scaled off `config.visualRadius`) --
+ * no per-identity branching here, augment_weapon.csv's `asset`/`color`/`visual_radius`
+ * columns are the only thing that changes what this looks like. Explosion VFX (below) is
+ * still a placeholder Shape circle -- out of scope for this ticket, which only covers the
+ * thrown/placed object itself. Stats come from augment_weapon.csv/augment_weapon_scale.csv
+ * via content/augments.ts -- this class has no hardcoded numbers of its own. */
+export class AoeLob extends Phaser.GameObjects.Sprite {
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
-    super(scene, x, y, config.visualRadius, 0, 360, false, config.color);
+    super(scene, x, y, config.textureKey);
     scene.add.existing(this);
+
+    this.setTint(config.color);
+    // setDisplaySize adjusts scaleX/scaleY to hit an exact on-screen size regardless of the
+    // source texture's native pixel dimensions -- diameter (2x visualRadius) matches what
+    // the old Arc primitive's radius used to render as, so this keeps representing the same
+    // gameplay-relevant scale, just via a real sprite now instead of a flat circle.
+    this.setDisplaySize(config.visualRadius * 2, config.visualRadius * 2);
 
     if (!config.travels) {
       playSfx(scene, 'landmine_place');
