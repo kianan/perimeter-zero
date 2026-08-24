@@ -20,9 +20,17 @@ export function preloadAugmentData(scene: Phaser.Scene) {
  * preload()'s own automatic load phase has already run to completion, so nothing would kick
  * them off otherwise. Call once from a scene's create(), after preloadAugmentData()'s CSV
  * load has completed. Loop body is identical for every augment identity -- no per-id/per-name
- * special-casing, so a new augment_weapon.csv row needs no changes here. */
+ * special-casing, so a new augment_weapon.csv row needs no changes here.
+ *
+ * TICKET-022: also registers each identity's `augment_${id}_explosion` animation once this
+ * load batch's frames have actually finished loading (scene.load's own 'complete' event) --
+ * anims.create() resolves each frame against the texture manager at creation time, so
+ * registering before the explosion PNGs exist would bind the animation to whatever
+ * placeholder/missing texture is there yet. Listener is attached before scene.load.start()
+ * is called, so it can't miss the completion of the very batch queued above. */
 export function loadAugmentAssets(scene: Phaser.Scene): void {
-  for (const identity of getAllAugmentIdentities(scene)) {
+  const identities = getAllAugmentIdentities(scene);
+  for (const identity of identities) {
     scene.load.image(`augment_${identity.id}_object`, `assets/${identity.asset}.png`);
     for (let i = 0; i < identity.explosionFrameCount; i++) {
       scene.load.image(
@@ -31,7 +39,33 @@ export function loadAugmentAssets(scene: Phaser.Scene): void {
       );
     }
   }
+  scene.load.once(Phaser.Loader.Events.COMPLETE, () => createAugmentExplosionAnims(scene, identities));
   scene.load.start();
+}
+
+/** Registers one `augment_${id}_explosion` animation per augment identity, built entirely
+ * from parsed augment_weapon.csv data -- frame count from explosionFrameCount, frame keys
+ * from the `augment_${id}_explosion_${i}` textures loadAugmentAssets() above just queued,
+ * and playback speed derived from explosionVisualMs (so the anim's duration matches the
+ * augment's own configured VFX duration) rather than a hardcoded constant. No branching on
+ * id/name -- a new augment_weapon.csv row needs no changes here, same as the rest of this
+ * file. Guards against re-registering an already-known key, same reasoning as
+ * characterAssets.ts's createCharacterAnims() (anims are global across scenes/restarts, not
+ * scene-scoped). */
+export function createAugmentExplosionAnims(scene: Phaser.Scene, identities: AugmentIdentity[]): void {
+  for (const identity of identities) {
+    const key = `augment_${identity.id}_explosion`;
+    if (scene.anims.exists(key)) continue;
+
+    scene.anims.create({
+      key,
+      frames: Array.from({ length: identity.explosionFrameCount }, (_, i) => ({
+        key: `augment_${identity.id}_explosion_${i}`,
+      })),
+      frameRate: identity.explosionFrameCount / (identity.explosionVisualMs / 1000),
+      repeat: 0,
+    });
+  }
 }
 
 /** From augment_weapon.csv -- static per augment, doesn't vary by tier. */
