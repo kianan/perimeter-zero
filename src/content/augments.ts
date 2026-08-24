@@ -20,6 +20,13 @@ export interface AugmentIdentity {
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
+  /** Extension-less asset path (e.g. "weapons/augments/grenade/grenade") -- pass-through,
+   * no rendering/loading wired up yet (data plumbing only, see TICKET-020). */
+  asset: string;
+  /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- pass-through,
+   * same as `asset`. */
+  explosionAsset: string;
+  explosionFrameCount: number;
 }
 
 /** From augment_weapon_scale.csv -- one node in an augment's tech tree. `parentTierId` is
@@ -58,6 +65,9 @@ function toIdentity(row: Record<string, string>): AugmentIdentity {
     color: Number(row.color),
     explosionColor: Number(row.explosion_color),
     explosionVisualMs: Number(row.explosion_visual_ms),
+    asset: row.asset,
+    explosionAsset: row.explosion_asset,
+    explosionFrameCount: Number(row.explosion_frame_count),
   };
 }
 
