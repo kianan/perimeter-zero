@@ -430,6 +430,8 @@ export class GameScene extends Phaser.Scene {
         color: identity.color,
         explosionColor: identity.explosionColor,
         explosionVisualMs: identity.explosionVisualMs,
+        explosionTextureKey: `augment_${identity.id}_explosion_0`,
+        explosionAnimKey: `augment_${identity.id}_explosion`,
         deploySfx: identity.deploySfx,
         onExplode: (x, y, radius) => this.applyAoeLobDamage(x, y, radius, tier.damage),
       });

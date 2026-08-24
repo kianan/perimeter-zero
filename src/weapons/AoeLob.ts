@@ -2,15 +2,18 @@ import Phaser from 'phaser';
 import { playSfx } from '../content/sfx';
 
 // Pure animation shape, not a balance stat -- unlike radius/damage/etc, doesn't need to be
-// data-driven (see augment_weapon_scale.csv). Blast grows from 0.85x up to exactly 1x (the
-// true damage radius) while fading, so it never visually overshoots the actual hit area --
-// previously scaled past 1x, which made enemies just outside the real radius look hit.
+// data-driven (see augment_weapon_scale.csv). Blast sprite grows from 0.85x up to its full
+// visualRadius-derived size while fading out -- same "don't overshoot the real footprint"
+// reasoning TICKET-023 established for the object sprite, now applied to the explosion
+// sprite too (TICKET-024): previously this scaled a placeholder Shape circle past 1x of the
+// AoE damage radius, which made enemies just outside the real radius look hit.
 const EXPLOSION_START_SCALE = 0.85;
 
 export interface AoeLobConfig {
   targetX: number;
   targetY: number;
-  /** AoE damage radius -- also the explosion visual's size. */
+  /** AoE damage radius -- the actual hit-area size used for damage application
+   * (onExplode below), independent of how big the explosion visual renders. */
   radius: number;
   travelSpeed: number;
   delayMs: number; // sits after arriving (or after being placed, if !travels), before exploding
@@ -31,11 +34,26 @@ export interface AoeLobConfig {
    * as the sprite's on-screen size via setDisplaySize(), so a bigger visual_radius CSV value
    * renders a physically bigger object regardless of the source PNG's native pixel size
    * (TICKET-023: previously this doubled as the Arc primitive's actual radius; now it drives
-   * scale on a real sprite instead). */
+   * scale on a real sprite instead). Also drives the explosion sprite's own size (TICKET-024,
+   * see explode() below) -- the detonation reads as "this same object, now going off," sized
+   * consistently with how it looked in flight rather than snapping to an unrelated scale. */
   visualRadius: number;
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
+  /** Texture key for the first frame of this augment's explosion VFX --
+   * `augment_${identity.id}_explosion_0` (content/augments.ts's loadAugmentAssets(),
+   * TICKET-021) -- set as the explosion sprite's initial texture before .play() below takes
+   * over. Per-identity, entirely data-driven off augment_weapon.csv's `explosion_asset`
+   * column -- no branching on which augment this is (TICKET-024). */
+  explosionTextureKey: string;
+  /** Animation key for this augment's full explosion VFX -- `augment_${identity.id}_explosion`,
+   * registered by content/augments.ts's createAugmentExplosionAnims() (TICKET-022) with a
+   * frame rate derived from explosionVisualMs. Playing this is what actually shows the
+   * augment's real per-identity frames (e.g. a 7-frame vs. a 10-frame animation) -- the
+   * scale-up/fade-out tween below is a separate, timing-independent wrapper around it
+   * (TICKET-024). */
+  explosionAnimKey: string;
   /** sfx.csv event id (augment_weapon.csv's `deploy_sfx` column, via
    * content/augments.ts's AugmentIdentity.deploySfx) to play the moment this object is
    * thrown/placed -- data-driven per identity so this shared engine never hardcodes an
@@ -53,14 +71,15 @@ export interface AoeLobConfig {
  * `config.travels`), sits with a fuse delay, then explodes, dealing damage in a radius.
  * Shared engine for every AoeLob-type Augment (a lobbed identity, a placed identity, and
  * eventually artillery strike/orbital strike/homing missile) -- has no per-identity
- * branching anywhere in this file. Renders as the augment's real object sprite (TICKET-023:
- * texture `config.textureKey`, tinted `config.color`, scaled off `config.visualRadius`) and
- * plays `config.deploySfx` on throw/placement -- augment_weapon.csv's
- * `asset`/`color`/`visual_radius`/`deploy_sfx` columns are the only thing that changes what
- * this looks and sounds like. Explosion VFX (below) is still a placeholder Shape circle --
- * out of scope for this ticket, which only covers the thrown/placed object itself. Stats
- * come from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this
- * class has no hardcoded numbers of its own. */
+ * branching anywhere in this file. Renders as the augment's real object sprite in flight
+ * (TICKET-023: texture `config.textureKey`, tinted `config.color`, scaled off
+ * `config.visualRadius`) and, on detonation, as that same identity's real explosion
+ * animation (TICKET-024: texture `config.explosionTextureKey`, tinted
+ * `config.explosionColor`, playing `config.explosionAnimKey`) -- augment_weapon.csv's
+ * `asset`/`color`/`visual_radius`/`explosion_asset`/`explosion_color`/`deploy_sfx` columns
+ * are the only thing that changes what any given augment looks and sounds like. Stats come
+ * from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this class has
+ * no hardcoded numbers of its own. */
 export class AoeLob extends Phaser.GameObjects.Sprite {
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
     super(scene, x, y, config.textureKey);
@@ -96,15 +115,43 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
   private explode() {
     const scene = this.scene;
     const { x, y } = this;
-    const { radius, onExplode, explosionColor, explosionVisualMs } = this.config;
+    const {
+      radius,
+      onExplode,
+      explosionColor,
+      explosionVisualMs,
+      explosionTextureKey,
+      explosionAnimKey,
+      visualRadius,
+    } = this.config;
 
+    // Damage application uses the real AoE `radius`, independent of however big the
+    // explosion visual itself renders below.
     onExplode(x, y, radius);
     playSfx(scene, 'explode');
 
-    const blast = scene.add.circle(x, y, radius, explosionColor, 0.5).setScale(EXPLOSION_START_SCALE);
+    // Real per-identity explosion art (TICKET-024) -- textured with this identity's first
+    // explosion frame, tinted config.explosionColor, then handed off to .play() to run the
+    // full animation (a 7-frame Grenade blast looks nothing like a 10-frame Land Mine blast,
+    // not just the same shape tinted two ways). Sized off visualRadius the same way the
+    // object sprite is (setDisplaySize below), so it reads as this same object detonating
+    // rather than an unrelated shape, and -- since visualRadius is the object's own compact
+    // footprint, not the (much larger) AoE damage radius -- never visually overshoots it.
+    const blast = scene.add.sprite(x, y, explosionTextureKey).setTint(explosionColor);
+    blast.setDisplaySize(visualRadius * 2, visualRadius * 2);
+    const fullScaleX = blast.scaleX;
+    const fullScaleY = blast.scaleY;
+    blast.setScale(fullScaleX * EXPLOSION_START_SCALE, fullScaleY * EXPLOSION_START_SCALE);
+    blast.play(explosionAnimKey);
+
+    // Scale-up/fade-out tween wrapper, unchanged in shape/duration from the placeholder
+    // circle it replaces -- explosionVisualMs governs this tween's timing, entirely
+    // independent of the animation's own frame timing (which comes from
+    // createAugmentExplosionAnims()'s frameRate, see content/augments.ts).
     scene.tweens.add({
       targets: blast,
-      scale: 1,
+      scaleX: fullScaleX,
+      scaleY: fullScaleY,
       alpha: 0,
       duration: explosionVisualMs,
       onComplete: () => blast.destroy(),
