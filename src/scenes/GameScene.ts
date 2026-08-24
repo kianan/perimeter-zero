@@ -412,7 +412,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Fires one activation of an AoeLob-type Augment: tier.explosionCount independently
-   * targeted AoeLob instances (see pickAoeLobTargets()), using identity for visuals and
+   * targeted AoeLob instances (see pickAoeLobTargets()), using identity for visuals/sfx and
    * tier for behavior/stats. */
   private fireAoeLob(identity: AugmentIdentity, tier: AugmentTier) {
     if (this.roundOver || this.paused) return;
@@ -430,6 +430,7 @@ export class GameScene extends Phaser.Scene {
         color: identity.color,
         explosionColor: identity.explosionColor,
         explosionVisualMs: identity.explosionVisualMs,
+        deploySfx: identity.deploySfx,
         onExplode: (x, y, radius) => this.applyAoeLobDamage(x, y, radius, tier.damage),
       });
     }

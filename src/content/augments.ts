@@ -81,12 +81,19 @@ export interface AugmentIdentity {
   /** Extension-less asset path, relative to assets/ -- an augment's object-sprite file stem
    * (image at `assets/${asset}.png`, a per-identity subfolder plus a file named after that
    * identity). Loaded by loadAugmentAssets() above as texture key `augment_${id}_object`
-   * (TICKET-021). Rendering against that texture key isn't wired up yet, just the load. */
+   * (TICKET-021). Rendered as a tinted, visualRadius-scaled Sprite (TICKET-023) -- see
+   * weapons/AoeLob.ts. */
   asset: string;
   /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- loadAugmentAssets()
    * loads `explosionFrameCount` frames from this folder as `augment_${id}_explosion_${i}`. */
   explosionAsset: string;
   explosionFrameCount: number;
+  /** sfx.csv event id (see content/sfx.ts) to play the moment this augment's object is
+   * thrown/placed -- e.g. a lobbed identity's throw sound vs. a placed identity's set-down
+   * sound. Lives in data (augment_weapon.csv's `deploy_sfx` column) rather than a literal in
+   * weapons/AoeLob.ts, which is a shared engine across every AoeLob-type augment and must
+   * stay free of any per-identity branching or hardcoded sfx key names (TICKET-023 revision). */
+  deploySfx: string;
 }
 
 /** From augment_weapon_scale.csv -- one node in an augment's tech tree. `parentTierId` is
@@ -129,6 +136,7 @@ function toIdentity(row: Record<string, string>): AugmentIdentity {
     asset: row.asset,
     explosionAsset: row.explosion_asset,
     explosionFrameCount: Number(row.explosion_frame_count),
+    deploySfx: row.deploy_sfx,
   };
 }
 

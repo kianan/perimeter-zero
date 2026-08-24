@@ -15,16 +15,17 @@ export interface AoeLobConfig {
   travelSpeed: number;
   delayMs: number; // sits after arriving (or after being placed, if !travels), before exploding
   /** Type-A shape column (augment_weapon_scale.csv's `travels`). True = tweens to
-   * targetX/targetY like Grenade. False = stays exactly where thrown, on a timed fuse --
-   * Land Mine's shape ("set it, forget it, get reminded when it goes off", GDD_lore.md §4).
-   * Previously always true in practice: this field didn't exist and the constructor tweened
-   * unconditionally, so augment_weapon_scale.csv's own `travels` column was silently ignored
-   * even though it was already being parsed (content/augments.ts's AugmentTier.travels). */
+   * targetX/targetY like a lobbed identity. False = stays exactly where thrown, on a timed
+   * fuse -- a placed identity's shape ("set it, forget it, get reminded when it goes off",
+   * GDD_lore.md §4). Previously always true in practice: this field didn't exist and the
+   * constructor tweened unconditionally, so augment_weapon_scale.csv's own `travels` column
+   * was silently ignored even though it was already being parsed (content/augments.ts's
+   * AugmentTier.travels). */
   travels: boolean;
   /** Texture key for the thrown/placed object sprite -- `augment_${identity.id}_object`,
    * loaded by content/augments.ts's loadAugmentAssets() (TICKET-021). Which PNG that
-   * resolves to (grenade.png, landmine.png, ...) is entirely data-driven off
-   * augment_weapon.csv's `asset` column -- this class has no per-identity branching. */
+   * resolves to is entirely data-driven off augment_weapon.csv's `asset` column -- this
+   * class has no per-identity branching. */
   textureKey: string;
   /** Real-world "radius" this object should visually read as -- diameter (2x this) is used
    * as the sprite's on-screen size via setDisplaySize(), so a bigger visual_radius CSV value
@@ -35,6 +36,12 @@ export interface AoeLobConfig {
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
+  /** sfx.csv event id (augment_weapon.csv's `deploy_sfx` column, via
+   * content/augments.ts's AugmentIdentity.deploySfx) to play the moment this object is
+   * thrown/placed -- data-driven per identity so this shared engine never hardcodes an
+   * identity-specific sfx key name (TICKET-023 revision: previously branched on `travels`
+   * to pick between two literal event ids here). */
+  deploySfx: string;
   /** Fired at the moment of detonation. AoeLob only owns its own visual lifecycle -- it
    * doesn't know about Enemy, same split as Bullet not knowing about Enemy either. The
    * caller (GameScene, which owns the enemies list) applies damage here. */
@@ -44,15 +51,16 @@ export interface AoeLobConfig {
 /** Type-A Augment mechanic ("aoe_lob" in augment_weapon.csv's `type` column -- see
  * brief-augment.md): either travels to a target point or is placed immediately (see
  * `config.travels`), sits with a fuse delay, then explodes, dealing damage in a radius.
- * Shared engine for every AoeLob-type Augment (Grenade, Land Mine, and eventually artillery
- * strike/orbital strike/homing missile) -- was called Grenade until a second AoeLob
- * augment made that name dishonest. Renders as the augment's real object sprite (TICKET-023:
- * texture `config.textureKey`, tinted `config.color`, scaled off `config.visualRadius`) --
- * no per-identity branching here, augment_weapon.csv's `asset`/`color`/`visual_radius`
- * columns are the only thing that changes what this looks like. Explosion VFX (below) is
- * still a placeholder Shape circle -- out of scope for this ticket, which only covers the
- * thrown/placed object itself. Stats come from augment_weapon.csv/augment_weapon_scale.csv
- * via content/augments.ts -- this class has no hardcoded numbers of its own. */
+ * Shared engine for every AoeLob-type Augment (a lobbed identity, a placed identity, and
+ * eventually artillery strike/orbital strike/homing missile) -- has no per-identity
+ * branching anywhere in this file. Renders as the augment's real object sprite (TICKET-023:
+ * texture `config.textureKey`, tinted `config.color`, scaled off `config.visualRadius`) and
+ * plays `config.deploySfx` on throw/placement -- augment_weapon.csv's
+ * `asset`/`color`/`visual_radius`/`deploy_sfx` columns are the only thing that changes what
+ * this looks and sounds like. Explosion VFX (below) is still a placeholder Shape circle --
+ * out of scope for this ticket, which only covers the thrown/placed object itself. Stats
+ * come from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this
+ * class has no hardcoded numbers of its own. */
 export class AoeLob extends Phaser.GameObjects.Sprite {
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
     super(scene, x, y, config.textureKey);
@@ -65,13 +73,13 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     // gameplay-relevant scale, just via a real sprite now instead of a flat circle.
     this.setDisplaySize(config.visualRadius * 2, config.visualRadius * 2);
 
+    playSfx(scene, config.deploySfx);
+
     if (!config.travels) {
-      playSfx(scene, 'landmine_place');
       scene.time.delayedCall(config.delayMs, () => this.explode());
       return;
     }
 
-    playSfx(scene, 'grenade_lob');
     const travelDist = Phaser.Math.Distance.Between(x, y, config.targetX, config.targetY);
     const travelMs = Math.max(100, (travelDist / config.travelSpeed) * 1000);
 
