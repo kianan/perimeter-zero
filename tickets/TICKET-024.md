@@ -2,7 +2,7 @@
 id: TICKET-024
 title: "AoeLob explosion rendering: circle \u2192 animated, tinted, scaled Sprite"
 increment: 24
-status: in_progress
+status: done
 acceptance:
 - explode() creates a sprite (not a circle) textured with `augment_${identity.id}_explosion_0`,
   tinted with config.explosionColor, playing animation `augment_${identity.id}_explosion`
