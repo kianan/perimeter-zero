@@ -1,5 +1,5 @@
 {
-  "status": "building",
+  "status": "done",
   "brief": "brief-augment-art",
   "increments": [
     {
@@ -57,5 +57,5 @@
       ]
     }
   ],
-  "current": 22
+  "current": 24
 }
