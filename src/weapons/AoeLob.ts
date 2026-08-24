@@ -3,22 +3,14 @@ import { playSfx } from '../content/sfx';
 
 // Pure animation shape, not a balance stat -- unlike radius/damage/etc, doesn't need to be
 // data-driven (see augment_weapon_scale.csv). Blast sprite grows from 0.85x up to its full
-// radius-derived size while fading out. REVISION (TICKET-024): sized off the AoE damage
-// `radius`, not `visualRadius` -- visualRadius is the in-flight object's own compact
-// footprint (TICKET-023's job) and is deliberately smaller than radius by design (see
-// augment_weapon_scale.csv). Sizing the blast off visualRadius made it render smaller than
-// the real hit area, so an enemy damaged near the edge of `radius` would visually read as
-// unhit. Sizing off `radius` instead means the blast always visually covers the actual AoE
-// hit area, matching the "shouldn't visually overshoot (or undershoot) the real hit area"
-// goal.
+// visualRadius-derived size while fading out.
 const EXPLOSION_START_SCALE = 0.85;
 
 export interface AoeLobConfig {
   targetX: number;
   targetY: number;
   /** AoE damage radius -- the actual hit-area size used for damage application
-   * (onExplode below), independent of how big the explosion visual renders. Also drives the
-   * explosion sprite's own display size (TICKET-024 revision) -- see explode() below. */
+   * (onExplode below), independent of how big the explosion visual renders. */
   radius: number;
   travelSpeed: number;
   delayMs: number; // sits after arriving (or after being placed, if !travels), before exploding
@@ -35,13 +27,13 @@ export interface AoeLobConfig {
    * resolves to is entirely data-driven off augment_weapon.csv's `asset` column -- this
    * class has no per-identity branching. */
   textureKey: string;
-  /** Real-world "radius" the in-flight object should visually read as -- diameter (2x this)
-   * is used as the object sprite's on-screen size via setDisplaySize(), so a bigger
-   * visual_radius CSV value renders a physically bigger object regardless of the source
-   * PNG's native pixel size (TICKET-023: previously this doubled as the Arc primitive's
-   * actual radius; now it drives scale on a real sprite instead). This is the object's own
-   * compact footprint, not the (much larger) AoE damage radius -- the explosion sprite is
-   * sized off `radius` instead, not this field (TICKET-024 revision, see explode() below). */
+  /** Real-world "radius" the in-flight object -- and, on detonation, the explosion sprite --
+   * should visually read as; diameter (2x this) is used as each sprite's on-screen size via
+   * setDisplaySize(), so a bigger visual_radius CSV value renders a physically bigger object
+   * regardless of the source PNG's native pixel size (TICKET-023: previously this doubled as
+   * the Arc primitive's actual radius; now it drives scale on a real sprite instead).
+   * Deliberately smaller than the AoE damage `radius` -- this is the augment's own compact
+   * footprint, not the (much larger) area actually checked for damage in onExplode below. */
   visualRadius: number;
   color: number;
   explosionColor: number;
@@ -80,11 +72,13 @@ export interface AoeLobConfig {
  * (TICKET-023: texture `config.textureKey`, tinted `config.color`, scaled off
  * `config.visualRadius`) and, on detonation, as that same identity's real explosion
  * animation (TICKET-024: texture `config.explosionTextureKey`, tinted
- * `config.explosionColor`, playing `config.explosionAnimKey`, scaled off `config.radius`) --
- * augment_weapon.csv's `asset`/`color`/`visual_radius`/`explosion_asset`/`explosion_color`/
- * `deploy_sfx` columns are the only thing that changes what any given augment looks and
- * sounds like. Stats come from augment_weapon.csv/augment_weapon_scale.csv via
- * content/augments.ts -- this class has no hardcoded numbers of its own. */
+ * `config.explosionColor`, playing `config.explosionAnimKey`, scaled off
+ * `config.visualRadius` the same way the object sprite is, so the blast doesn't visually
+ * overshoot the real hit area) -- augment_weapon.csv's
+ * `asset`/`color`/`visual_radius`/`explosion_asset`/`explosion_color`/`deploy_sfx` columns
+ * are the only thing that changes what any given augment looks and sounds like. Stats come
+ * from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this class has
+ * no hardcoded numbers of its own. */
 export class AoeLob extends Phaser.GameObjects.Sprite {
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
     super(scene, x, y, config.textureKey);
@@ -123,6 +117,7 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     const {
       radius,
       onExplode,
+      visualRadius,
       explosionColor,
       explosionVisualMs,
       explosionTextureKey,
@@ -137,15 +132,11 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     // Real per-identity explosion art (TICKET-024) -- textured with this identity's first
     // explosion frame, tinted config.explosionColor, then handed off to .play() to run the
     // full animation (a 7-frame Grenade blast looks nothing like a 10-frame Land Mine blast,
-    // not just the same shape tinted two ways). Sized off the AoE damage `radius` -- REVISION:
-    // previously sized off `visualRadius` (the same scale as the in-flight object sprite),
-    // but visualRadius is deliberately smaller than radius (the object's own compact
-    // footprint vs. the actual, much larger AoE hit area used by onExplode above), so an
-    // enemy damaged near the edge of `radius` didn't visually overlap the old, too-small
-    // blast sprite. Sizing off `radius` instead makes the blast visual match the real hit
-    // area exactly, so it neither overshoots nor undershoots it.
+    // not just the same shape tinted two ways). Scaled off `visualRadius`, the same way the
+    // in-flight object sprite is scaled (see constructor above), so the blast doesn't
+    // visually overshoot the real hit area.
     const blast = scene.add.sprite(x, y, explosionTextureKey).setTint(explosionColor);
-    blast.setDisplaySize(radius * 2, radius * 2);
+    blast.setDisplaySize(visualRadius * 2, visualRadius * 2);
     const fullScaleX = blast.scaleX;
     const fullScaleY = blast.scaleY;
     blast.setScale(fullScaleX * EXPLOSION_START_SCALE, fullScaleY * EXPLOSION_START_SCALE);
