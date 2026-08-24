@@ -1,81 +1,61 @@
 {
   "status": "done",
-  "brief": "brief-2-enemies",
+  "brief": "brief-augment-art",
   "increments": [
     {
-      "title": "Bullet damage field + enemy-bullet damage path",
-      "description": "Shared prerequisite: give bullets their own damage value instead of relying on the scene-level weapon damage, and add the missing enemy-to-player damage path. Add `damage: number` to `BulletConfig` and store it as a public readonly field on `Bullet` (Bullet.ts). Update `Player.ts`'s `onFire` to pass `damage: this.bulletDamage` when constructing the player's bullets. Change `GameScene`'s existing player-bullet/enemy overlap to read `(bulletObj as Bullet).damage` instead of `this.bulletDamage`. Add `private enemyBullets: Bullet[] = []` to `GameScene`, reset it in `create()` alongside the other arrays, and add a new `physics.add.overlap(this.player, this.enemyBullets, ...)` that destroys the bullet and calls `this.player.takeDamage((bulletObj as Bullet).damage)`. No enemy fires bullets yet in this increment.",
+      "title": "CSV columns + AugmentIdentity parsing",
+      "description": "Add `asset`, `explosion_asset`, `explosion_frame_count` columns to `augment_weapon.csv` for both the Grenade and Land Mine rows, matching the values given in the brief exactly (paths with no file extension for `asset`, folder path for `explosion_asset`). Extend `AugmentIdentity` in `content/augments.ts` with `asset: string`, `explosionAsset: string`, `explosionFrameCount: number`, parsed the same way existing fields like `weapon`/`type` are (straight pass-through for the two path strings, `Number()` for the count). `augment_weapon_scale.csv` is untouched. No rendering/loading behavior changes yet in this increment \u2014 this is data plumbing only.",
       "acceptance": [
-        "`tsc --noEmit` passes",
-        "`BulletConfig` has a `damage: number` field and `Bullet` exposes it as a public readonly property",
-        "`Player.ts`'s `onFire` passes `damage: this.bulletDamage` when constructing bullets",
-        "GameScene's player-bullet/enemy overlap callback reads `(bulletObj as Bullet).damage` and no longer references the old scene-level `this.bulletDamage` field at that call site",
-        "GameScene declares `private enemyBullets: Bullet[] = []`, resets it in `create()`, and registers a `physics.add.overlap(this.player, this.enemyBullets, ...)` handler that destroys the bullet and calls `this.player.takeDamage(bulletDamage)`",
-        "Firing the player's current weapon deals exactly the same damage as before this change (regression check)"
+        "augment_weapon.csv header includes asset,explosion_asset,explosion_frame_count and the Grenade/Land Mine rows contain exactly the values from the brief (weapons/augments/grenade/grenade, vfx/explosion/explosion_1, 7 and weapons/augments/landmine/landmine, vfx/explosion/explosion_2, 10)",
+        "augment_weapon_scale.csv has no diff",
+        "AugmentIdentity type/interface in content/augments.ts has asset: string, explosionAsset: string, explosionFrameCount: number, and the parsing code sets them from the corresponding CSV row using Number() only for explosionFrameCount",
+        "tsc --noEmit passes"
       ]
     },
     {
-      "title": "CSV data model + ResolvedEnemy pass-through for Shooter/Charger",
-      "description": "Add the new archetypes' data with no behavior change yet. Append the `shooter`/`charger` rows to `enemy.csv` with the new columns (`preferred_range`, `dash_burst_mult`, `dash_burst_ms`, `dash_cooldown_ms`), defaulted to 0/blank for the 3 existing rows. Append weapon id `2` to `weapon.csv` and `weapon_scale.csv` per the brief's exact rows. Add `shooter,1,...` and `charger,1,...` rows to `enemy_scale.csv` (shooter damage = 0). Extend the `ResolvedEnemy` interface in `content/enemies.ts` to include the new fields (same pattern as the already-unused `weapon`/`type` fields) so `getEnemy()` returns them, without yet wiring them into `Enemy`/`GameScene`.",
+      "title": "Generic preload of object sprite + explosion frame images",
+      "description": "In `preloadAugmentData(scene)`, after the existing CSV loads, add a create()-time step (following the same two-phase pattern used by preloadEnemyData/preloadCharacterAssets) that iterates the parsed augment identities and calls `scene.load.image(`augment_${id}_object`, `assets/${asset}.png`)` plus a loop of `explosionFrameCount` calls to `scene.load.image(`augment_${id}_explosion_${i}`, `assets/${explosionAsset}/explosion_${i}.png`)`. The loop body must be identical regardless of which augment is being loaded \u2014 no per-id branching or string-literal special-casing.",
       "acceptance": [
-        "`tsc --noEmit` passes",
-        "`enemy.csv` has `shooter` and `charger` rows matching the brief's values, and the 3 existing rows have 0/blank in all 4 new columns",
-        "`weapon.csv` and `weapon_scale.csv` each have a new row with id `2` matching the brief's values",
-        "`enemy_scale.csv` has `shooter,1,0,15,90` and `charger,1,18,25,140` rows",
-        "`ResolvedEnemy` in `content/enemies.ts` includes `preferred_range`, `dash_burst_mult`, `dash_burst_ms`, `dash_cooldown_ms` typed as numbers, and `getEnemy('shooter')`/`getEnemy('charger')` return the correct parsed values",
-        "No existing call site of `getEnemy()` is broken by the interface change"
+        "content/augments.ts contains a loop over parsed augment identities that issues one scene.load.image call for the object sprite and explosionFrameCount calls for explosion frames per identity, with no conditional keyed on id/name",
+        "Grepping the diff for 'grenade'/'landmine'/\"grenade\"/\"landmine\" string literals in any .ts file finds none",
+        "tsc --noEmit passes",
+        "Running the game and inspecting the network/asset load shows augment_1_object, augment_1_explosion_0..6, augment_3_object, augment_3_explosion_0..9 all requested and loaded successfully (no 404s)"
       ]
     },
     {
-      "title": "Enemy.ts: preferred-range stand-off + dash-burst cycle",
-      "description": "Add the two new core behaviors to `Enemy.ts` without wiring them to spawning yet. Constructor gains `preferredRange`, `dashBurstMult`, `dashBurstMs`, `dashCooldownMs` on `EnemyStats`, all defaulting to 0 so the 3 existing spawn calls are unaffected. `chase(targetX, targetY)`: when `preferredRange > 0` and `dist <= preferredRange`, zero velocity and play idle anim instead of continuing to close in; `dist > preferredRange` is unchanged. Add `startDashCycle()`: a repeating `scene.time.addEvent` at `dashCooldownMs` that tints the sprite (reusing the hit-flash tint call with a different color) and multiplies `this.speed` by `dashBurstMult` for `dashBurstMs` before reverting both tint and speed. `startDashCycle()` is not yet called by anything.",
+      "title": "Generic per-augment explosion animation registration",
+      "description": "Add a generic anim-registration step (in createCharacterAnims() or a new dedicated function \u2014 engineer's call) that creates one Phaser animation per augment identity: key `augment_${id}_explosion`, frames `augment_${id}_explosion_0` through `augment_${id}_explosion_{explosionFrameCount-1}`, built via the same loop-driven construction as the preload step, no per-id branching.",
       "acceptance": [
-        "`tsc --noEmit` passes",
-        "`EnemyStats`/`Enemy` constructor accepts `preferredRange`, `dashBurstMult`, `dashBurstMs`, `dashCooldownMs`, all defaulting to 0",
-        "`chase()` stops the enemy (zero velocity, idle anim) when `preferredRange > 0 && dist <= preferredRange`, and is byte-for-byte equivalent to prior behavior when `preferredRange === 0`",
-        "`startDashCycle()` exists, uses `scene.time.addEvent` at `dashCooldownMs`, applies a distinct tint and multiplies `this.speed` by `dashBurstMult` for `dashBurstMs`, then reverts both",
-        "Existing rusher/swarm/tank spawns (all `preferredRange === 0`, no dash fields set) are unaffected \u2014 no call to `startDashCycle()` exists yet"
+        "Code contains a loop over parsed augment identities producing one scene.anims.create (or equivalent) call per identity, using explosionFrameCount to bound the frame list, with no conditional keyed on id/name",
+        "Grepping the diff for 'grenade'/'landmine'/\"grenade\"/\"landmine\" string literals in any .ts file finds none",
+        "tsc --noEmit passes",
+        "At runtime, scene.anims.exists('augment_1_explosion') and scene.anims.exists('augment_3_explosion') are both true, with 7 and 10 frames respectively (checkable via scene.anims.get(key).frames.length)"
       ]
     },
     {
-      "title": "GameScene wiring: spawn Shooter/Charger with real behavior + enemy weapon fire",
-      "description": "Wire the previous two increments together so Shooter and Charger are actually playable. In `spawnEnemy()`, read the new `enemy.csv` fields via `getEnemy()`, pass them into the `Enemy` constructor, and call `startDashCycle()` when `dashBurstMult > 0`. Add `fireEnemyWeapon(enemy: Enemy)`: for a spawned enemy with a non-blank `weapon` FK, arm a `scene.time.addEvent` at the `1000 / fireRate`-derived interval (mirroring `Player.ts`) that spawns a `Bullet` (with `damage` from the resolved weapon) aimed from the enemy toward the player's current position, pushed into `this.enemyBullets`; stop firing once the enemy is `dying` (same guard `chase()` uses). Add `shooter`/`charger` entries to `archetypes.ts` using placeholder art reuse for both for now (real art swap is the next increment). Add `1,shooter,5000,1` and `1,charger,5500,1` to `level_enemies.csv` so both are reachable for manual QA.",
+      "title": "AoeLob object rendering: Arc \u2192 tinted, scaled Sprite",
+      "description": "Change AoeLob.ts's base class from Phaser.GameObjects.Arc to Phaser.GameObjects.Sprite, using texture key `augment_${identity.id}_object`. Apply config.color as a tint via setTint (unchanged behavior, new mechanism). Derive sprite scale from the visualRadius CSV column rather than leaving it at native texture size, so the rendered object's visual size matches the previous circle's role of representing gameplay-relevant scale.",
       "acceptance": [
-        "`tsc --noEmit` passes",
-        "`spawnEnemy()` passes `preferredRange`/`dashBurstMult`/`dashBurstMs`/`dashCooldownMs` from `getEnemy()` into the `Enemy` constructor, and calls `startDashCycle()` only when `dashBurstMult > 0`",
-        "`fireEnemyWeapon(enemy)` exists, is invoked for spawned enemies with a non-blank `weapon` FK, spawns `Bullet`s into `this.enemyBullets` aimed at the player at the correct fire-rate interval, and stops once the enemy is `dying`",
-        "Spawned Shooter stops at `preferred_range` instead of walking into the player, and standing still next to it with no bullet in flight deals no contact damage to the player (its `enemy_scale.csv` damage is 0)",
-        "Shooter's fired bullets damage the player on hit and are destroyed/expire otherwise",
-        "Spawned Charger periodically speeds up then returns to normal pace; `window.__qaGame` shows its velocity magnitude actually increases during a burst window",
-        "`level_enemies.csv` contains the `shooter`/`charger` rows for stage 1",
-        "Existing rusher/swarm spawn behavior is unchanged (regression check)"
+        "AoeLob.ts extends/uses Phaser.GameObjects.Sprite (not Arc) for the thrown/placed object, textured with `augment_${identity.id}_object`",
+        "The object sprite has setTint called with config.color",
+        "Sprite scale is computed from visualRadius (not left at default 1 / native texture size)",
+        "tsc --noEmit passes",
+        "In a live run, Grenade renders as the real grenade.png sprite tinted 0x88cc44 and Land Mine renders as the real landmine.png sprite tinted 0x996633 \u2014 neither is a flat circle",
+        "Grepping the diff for 'grenade'/'landmine'/\"grenade\"/\"landmine\" string literals in any .ts file finds none"
       ]
     },
     {
-      "title": "Real art: Shooter frames + Tank art swap",
-      "description": "Swap placeholder art for the two archetypes that now have real sprites. In `archetypes.ts`, point Shooter's `shooter_*` texture keys at `assets/enemies/ranged/*.png` (same `idle_0..5`/`walk_0..7`/`death_0..9` frame-count convention as rusher) instead of the rusher placeholder used in the previous increment. Charger keeps reusing `assets/enemies/rusher/*.png` under `charger_*` keys (still no real art \u2014 out of scope). Separately in `characterAssets.ts`, swap Tank's load paths from `assets/enemies/rusher/${anim}_${i}.png` to `assets/enemies/tank/${anim}_${i}.png`, keeping the same `tank_` key names and same `ANIMS`/`TANK_DEATH_FRAMES` counts.",
+      "title": "AoeLob explosion rendering: circle \u2192 animated, tinted, scaled Sprite",
+      "description": "In explode(), replace scene.add.circle(...) with scene.add.sprite(x, y, `augment_${identity.id}_explosion_0`), tinted with config.explosionColor, then .play(`augment_${identity.id}_explosion`) to run the real per-augment animation. Keep the same scale-up/fade-out tween wrapper and explosionVisualMs duration as before (tween timing independent of the animation's own frame timing, per brief). Scale the explosion sprite from visualRadius the same way the object sprite is scaled, so it doesn't visually overshoot the real hit area. This is the last code increment \u2014 run the brief's full acceptance sweep at the end.",
       "acceptance": [
-        "`tsc --noEmit` passes",
-        "`archetypes.ts` loads `shooter_*` keys from `assets/enemies/ranged/*.png`, not from a rusher path",
-        "`archetypes.ts` still loads `charger_*` keys from `assets/enemies/rusher/*.png` (placeholder retained)",
-        "`characterAssets.ts` loads all `tank_*` keys from `assets/enemies/tank/${anim}_${i}.png` with unchanged key names and frame counts",
-        "Spawning a Shooter or a Tank produces no missing-texture warnings in the console",
-        "Tank's stats/movement behavior is unchanged from before this increment (visual-only change)"
-      ]
-    },
-    {
-      "title": "Full regression pass + acceptance sign-off",
-      "description": "Final verification pass across the whole brief with no further code changes expected unless a regression is found. Confirm end-to-end: rusher and swarm are pixel-for-pixel unchanged from before this brief; Tank's behavior (stats/movement) is unchanged while its appearance now uses real sprite frames; player-fired bullets still deal exactly the same damage as before the `Bullet.damage` refactor; Shooter and Charger both spawn via `level_enemies.csv` and behave per their acceptance criteria; no missing-texture warnings anywhere in a full playthrough of stage 1.",
-      "acceptance": [
-        "`tsc --noEmit` passes with zero errors",
-        "Manual/QA playthrough confirms rusher and swarm movement and contact-damage timing are identical to pre-brief behavior",
-        "Tank spawns with `assets/enemies/tank/*.png` frames, identical stats/movement to before, no missing-texture warnings",
-        "Shooter spawns, stands off at `preferred_range`, fires damaging bullets, deals no contact damage while idle next to the player, and renders `assets/enemies/ranged/*.png` frames",
-        "Charger spawns, visibly tint-flashes and speeds up on a cycle (confirmed via `window.__qaGame` velocity magnitude), then returns to normal pace",
-        "Player-fired bullet damage matches pre-refactor values exactly",
-        "No console errors or missing-texture warnings during a full stage-1 run covering all 5 enemy types"
+        "explode() creates a sprite (not a circle) textured with `augment_${identity.id}_explosion_0`, tinted with config.explosionColor, playing animation `augment_${identity.id}_explosion`",
+        "The existing scale-up/fade-out tween still wraps the explosion visual using explosionVisualMs as its duration",
+        "Explosion sprite scale derives from visualRadius so a hit enemy visibly overlaps the explosion sprite (regression check against the existing 'shouldn't visually overshoot the real hit area' comment)",
+        "In a live run, Grenade's explosion visibly plays its 7-frame animation and Land Mine's plays its 10-frame animation, and the two look genuinely different (not the same sprite tinted two ways)",
+        "tsc --noEmit passes",
+        "Grepping the full diff for 'grenade'/'landmine'/\"grenade\"/\"landmine\" string literals in any .ts file across all five increments finds none"
       ]
     }
   ],
-  "current": 19
+  "current": 24
 }

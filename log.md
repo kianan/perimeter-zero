@@ -76,3 +76,20 @@
   revert logic) — this session's Browser pane has a persistent WebGL fault unrelated to this
   brief, so a live playthrough wasn't possible from here; still worth Studio Head's own
   in-browser pass before fully signing off.
+- `22:21:07` ingested brief 'brief-augment-art'
+- `22:21:41` planned 5 increments
+- `22:22:41` TICKET-020 review (attempt 1): REVISE
+- `22:24:01` TICKET-020 review (attempt 2): REVISE
+- `22:25:11` TICKET-020 review (attempt 3): REVISE
+- `22:26:01` TICKET-020 pushback: Produced no FILE: blocks — restate what you need to change.
+- `22:26:16` TICKET-020 escalated; Studio Head: skip
+- `22:30:29` TICKET-021 review (attempt 1): ACCEPT
+- `22:33:39` TICKET-022 review (attempt 1): REVISE
+- `22:35:28` TICKET-022 review (attempt 2): REVISE
+- `22:37:14` TICKET-022 review (attempt 3): REVISE
+- `22:38:17` TICKET-022 review (attempt 4): ACCEPT
+- `03:16:52` TICKET-023 review (attempt 1): REVISE
+- `03:20:12` TICKET-023 review (attempt 2): REVISE
+- `06:40:45` TICKET-024 review (attempt 1): REVISE
+- `06:42:01` TICKET-024 review (attempt 2): REVISE
+- `06:44:46` TICKET-024 review (attempt 3): ACCEPT

@@ -23,6 +23,7 @@ import { preloadEnemyData, getEnemy } from '../content/enemies';
 import { preloadPlayerLevelData, getPlayerLevel } from '../content/playerLevel';
 import {
   preloadAugmentData,
+  loadAugmentAssets,
   getAllAugmentIdentities,
   getRootTier,
   getChildTiers,
@@ -134,6 +135,12 @@ export class GameScene extends Phaser.Scene {
     this.currentLevelId = String(nextLevelId <= 0 ? 1 : nextLevelId);
 
     createCharacterAnims(this);
+
+    // TICKET-021: augment object sprite + explosion frames can only be queued once
+    // augment_weapon.csv's text load (preloadAugmentData(), preload()) has been parsed --
+    // that's not until now. Kicks off its own load phase (scene.load.start()); nothing here
+    // blocks on it finishing, since no rendering reads these textures yet.
+    loadAugmentAssets(this);
 
     const level = getLevel(this, this.currentLevelId);
     this.surviveSeconds = level.duration;
@@ -405,7 +412,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** Fires one activation of an AoeLob-type Augment: tier.explosionCount independently
-   * targeted AoeLob instances (see pickAoeLobTargets()), using identity for visuals and
+   * targeted AoeLob instances (see pickAoeLobTargets()), using identity for visuals/sfx and
    * tier for behavior/stats. */
   private fireAoeLob(identity: AugmentIdentity, tier: AugmentTier) {
     if (this.roundOver || this.paused) return;
@@ -418,10 +425,14 @@ export class GameScene extends Phaser.Scene {
         travelSpeed: tier.travelSpeed,
         delayMs: tier.delayMs,
         travels: tier.travels,
+        textureKey: `augment_${identity.id}_object`,
         visualRadius: identity.visualRadius,
         color: identity.color,
         explosionColor: identity.explosionColor,
         explosionVisualMs: identity.explosionVisualMs,
+        explosionTextureKey: `augment_${identity.id}_explosion_0`,
+        explosionAnimKey: `augment_${identity.id}_explosion`,
+        deploySfx: identity.deploySfx,
         onExplode: (x, y, radius) => this.applyAoeLobDamage(x, y, radius, tier.damage),
       });
     }

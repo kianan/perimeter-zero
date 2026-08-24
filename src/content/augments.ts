@@ -10,6 +10,64 @@ export function preloadAugmentData(scene: Phaser.Scene) {
   scene.load.text(AUGMENT_WEAPON_SCALE_CSV_KEY, 'data/augment_weapon_scale.csv');
 }
 
+/** Phase 2 of loading augment art (TICKET-021): the object sprite + explosion frames can't
+ * be queued from preload() itself, since which images to load depends on augment_weapon.csv's
+ * *parsed* rows (id/asset/explosionAsset/explosionFrameCount), and that CSV's text isn't
+ * parseable until its own load (queued by preloadAugmentData() above) has completed -- i.e.
+ * not until create(). Same two-phase split every other content/*.ts loader already follows
+ * (preloadXData() in preload(), getX()/getAllX() reading the parsed result in create()), just
+ * with an extra scene.load.start() here since these image loads are queued *after*
+ * preload()'s own automatic load phase has already run to completion, so nothing would kick
+ * them off otherwise. Call once from a scene's create(), after preloadAugmentData()'s CSV
+ * load has completed. Loop body is identical for every augment identity -- no per-id/per-name
+ * special-casing, so a new augment_weapon.csv row needs no changes here.
+ *
+ * TICKET-022: also registers each identity's `augment_${id}_explosion` animation once this
+ * load batch's frames have actually finished loading (scene.load's own 'complete' event) --
+ * anims.create() resolves each frame against the texture manager at creation time, so
+ * registering before the explosion PNGs exist would bind the animation to whatever
+ * placeholder/missing texture is there yet. Listener is attached before scene.load.start()
+ * is called, so it can't miss the completion of the very batch queued above. */
+export function loadAugmentAssets(scene: Phaser.Scene): void {
+  const identities = getAllAugmentIdentities(scene);
+  for (const identity of identities) {
+    scene.load.image(`augment_${identity.id}_object`, `assets/${identity.asset}.png`);
+    for (let i = 0; i < identity.explosionFrameCount; i++) {
+      scene.load.image(
+        `augment_${identity.id}_explosion_${i}`,
+        `assets/${identity.explosionAsset}/explosion_${i}.png`,
+      );
+    }
+  }
+  scene.load.once(Phaser.Loader.Events.COMPLETE, () => createAugmentExplosionAnims(scene, identities));
+  scene.load.start();
+}
+
+/** Registers one `augment_${id}_explosion` animation per augment identity, built entirely
+ * from parsed augment_weapon.csv data -- frame count from explosionFrameCount, frame keys
+ * from the `augment_${id}_explosion_${i}` textures loadAugmentAssets() above just queued,
+ * and playback speed derived from explosionVisualMs (so the anim's duration matches the
+ * augment's own configured VFX duration) rather than a hardcoded constant. No branching on
+ * id/name -- a new augment_weapon.csv row needs no changes here, same as the rest of this
+ * file. Guards against re-registering an already-known key, same reasoning as
+ * characterAssets.ts's createCharacterAnims() (anims are global across scenes/restarts, not
+ * scene-scoped). */
+export function createAugmentExplosionAnims(scene: Phaser.Scene, identities: AugmentIdentity[]): void {
+  for (const identity of identities) {
+    const key = `augment_${identity.id}_explosion`;
+    if (scene.anims.exists(key)) continue;
+
+    scene.anims.create({
+      key,
+      frames: Array.from({ length: identity.explosionFrameCount }, (_, i) => ({
+        key: `augment_${identity.id}_explosion_${i}`,
+      })),
+      frameRate: identity.explosionFrameCount / (identity.explosionVisualMs / 1000),
+      repeat: 0,
+    });
+  }
+}
+
 /** From augment_weapon.csv -- static per augment, doesn't vary by tier. */
 export interface AugmentIdentity {
   id: string;
@@ -20,6 +78,22 @@ export interface AugmentIdentity {
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
+  /** Extension-less asset path, relative to assets/ -- an augment's object-sprite file stem
+   * (image at `assets/${asset}.png`, a per-identity subfolder plus a file named after that
+   * identity). Loaded by loadAugmentAssets() above as texture key `augment_${id}_object`
+   * (TICKET-021). Rendered as a tinted, visualRadius-scaled Sprite (TICKET-023) -- see
+   * weapons/AoeLob.ts. */
+  asset: string;
+  /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- loadAugmentAssets()
+   * loads `explosionFrameCount` frames from this folder as `augment_${id}_explosion_${i}`. */
+  explosionAsset: string;
+  explosionFrameCount: number;
+  /** sfx.csv event id (see content/sfx.ts) to play the moment this augment's object is
+   * thrown/placed -- e.g. a lobbed identity's throw sound vs. a placed identity's set-down
+   * sound. Lives in data (augment_weapon.csv's `deploy_sfx` column) rather than a literal in
+   * weapons/AoeLob.ts, which is a shared engine across every AoeLob-type augment and must
+   * stay free of any per-identity branching or hardcoded sfx key names (TICKET-023 revision). */
+  deploySfx: string;
 }
 
 /** From augment_weapon_scale.csv -- one node in an augment's tech tree. `parentTierId` is
@@ -35,11 +109,12 @@ export interface AugmentTier {
   radius: number;
   cooldownMs: number;
   delayMs: number;
-  /** Type-A ("aoe_lob") shape columns -- shared shape for grenade/landmine/artillery
-   * strike/orbital strike/homing missile (see brief-augment.md). Repurposed for
-   * AoeLob-type augments to mean "how many are thrown per activation" (each independently
-   * targeted), not "how many explosions from one throw" -- that original meaning is still
-   * open for a future non-AoeLob sibling that actually needs it. */
+  /** Type-A ("aoe_lob") shape columns -- shared shape across every augment identity of that
+   * type (see brief-augment.md for the full roster and per-identity behavior differences,
+   * rather than listing specific identities here). Repurposed for AoeLob-type augments to
+   * mean "how many are thrown per activation" (each independently targeted), not "how many
+   * explosions from one throw" -- that original meaning is still open for a future
+   * non-AoeLob sibling that actually needs it. */
   explosionCount: number;
   travels: boolean;
   homing: boolean;
@@ -58,6 +133,10 @@ function toIdentity(row: Record<string, string>): AugmentIdentity {
     color: Number(row.color),
     explosionColor: Number(row.explosion_color),
     explosionVisualMs: Number(row.explosion_visual_ms),
+    asset: row.asset,
+    explosionAsset: row.explosion_asset,
+    explosionFrameCount: Number(row.explosion_frame_count),
+    deploySfx: row.deploy_sfx,
   };
 }
 
