@@ -2,7 +2,7 @@
 id: TICKET-022
 title: Generic per-augment explosion animation registration
 increment: 22
-status: in_progress
+status: done
 acceptance:
 - Code contains a loop over parsed augment identities producing one scene.anims.create
   (or equivalent) call per identity, using explosionFrameCount to bound the frame
