@@ -79,8 +79,8 @@ export interface AugmentIdentity {
   explosionColor: number;
   explosionVisualMs: number;
   /** Extension-less asset path, relative to assets/ -- an augment's object-sprite file stem
-   * (image at `assets/${asset}.png`, e.g. a category subfolder plus a file named after that
-   * category). Loaded by loadAugmentAssets() above as texture key `augment_${id}_object`
+   * (image at `assets/${asset}.png`, a per-identity subfolder plus a file named after that
+   * identity). Loaded by loadAugmentAssets() above as texture key `augment_${id}_object`
    * (TICKET-021). Rendering against that texture key isn't wired up yet, just the load. */
   asset: string;
   /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- loadAugmentAssets()
@@ -103,10 +103,11 @@ export interface AugmentTier {
   cooldownMs: number;
   delayMs: number;
   /** Type-A ("aoe_lob") shape columns -- shared shape across every augment identity of that
-   * type (see brief-augment.md for the full roster and per-identity behavior differences).
-   * Repurposed for AoeLob-type augments to mean "how many are thrown per activation" (each
-   * independently targeted), not "how many explosions from one throw" -- that original
-   * meaning is still open for a future non-AoeLob sibling that actually needs it. */
+   * type (see brief-augment.md for the full roster and per-identity behavior differences,
+   * rather than listing specific identities here). Repurposed for AoeLob-type augments to
+   * mean "how many are thrown per activation" (each independently targeted), not "how many
+   * explosions from one throw" -- that original meaning is still open for a future
+   * non-AoeLob sibling that actually needs it. */
   explosionCount: number;
   travels: boolean;
   homing: boolean;
