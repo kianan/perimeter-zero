@@ -23,6 +23,7 @@ import { preloadEnemyData, getEnemy } from '../content/enemies';
 import { preloadPlayerLevelData, getPlayerLevel } from '../content/playerLevel';
 import {
   preloadAugmentData,
+  loadAugmentAssets,
   getAllAugmentIdentities,
   getRootTier,
   getChildTiers,
@@ -134,6 +135,12 @@ export class GameScene extends Phaser.Scene {
     this.currentLevelId = String(nextLevelId <= 0 ? 1 : nextLevelId);
 
     createCharacterAnims(this);
+
+    // TICKET-021: augment object sprite + explosion frames can only be queued once
+    // augment_weapon.csv's text load (preloadAugmentData(), preload()) has been parsed --
+    // that's not until now. Kicks off its own load phase (scene.load.start()); nothing here
+    // blocks on it finishing, since no rendering reads these textures yet.
+    loadAugmentAssets(this);
 
     const level = getLevel(this, this.currentLevelId);
     this.surviveSeconds = level.duration;

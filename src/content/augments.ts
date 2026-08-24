@@ -10,6 +10,30 @@ export function preloadAugmentData(scene: Phaser.Scene) {
   scene.load.text(AUGMENT_WEAPON_SCALE_CSV_KEY, 'data/augment_weapon_scale.csv');
 }
 
+/** Phase 2 of loading augment art (TICKET-021): the object sprite + explosion frames can't
+ * be queued from preload() itself, since which images to load depends on augment_weapon.csv's
+ * *parsed* rows (id/asset/explosionAsset/explosionFrameCount), and that CSV's text isn't
+ * parseable until its own load (queued by preloadAugmentData() above) has completed -- i.e.
+ * not until create(). Same two-phase split every other content/*.ts loader already follows
+ * (preloadXData() in preload(), getX()/getAllX() reading the parsed result in create()), just
+ * with an extra scene.load.start() here since these image loads are queued *after*
+ * preload()'s own automatic load phase has already run to completion, so nothing would kick
+ * them off otherwise. Call once from a scene's create(), after preloadAugmentData()'s CSV
+ * load has completed. Loop body is identical for every augment identity -- no per-id/per-name
+ * special-casing, so a new augment_weapon.csv row needs no changes here. */
+export function loadAugmentAssets(scene: Phaser.Scene): void {
+  for (const identity of getAllAugmentIdentities(scene)) {
+    scene.load.image(`augment_${identity.id}_object`, `assets/${identity.asset}.png`);
+    for (let i = 0; i < identity.explosionFrameCount; i++) {
+      scene.load.image(
+        `augment_${identity.id}_explosion_${i}`,
+        `assets/${identity.explosionAsset}/explosion_${i}.png`,
+      );
+    }
+  }
+  scene.load.start();
+}
+
 /** From augment_weapon.csv -- static per augment, doesn't vary by tier. */
 export interface AugmentIdentity {
   id: string;
@@ -20,11 +44,12 @@ export interface AugmentIdentity {
   color: number;
   explosionColor: number;
   explosionVisualMs: number;
-  /** Extension-less asset path (e.g. "weapons/augments/grenade/grenade") -- pass-through,
-   * no rendering/loading wired up yet (data plumbing only, see TICKET-020). */
+  /** Extension-less asset path (e.g. "weapons/augments/grenade/grenade") -- loaded by
+   * loadAugmentAssets() above as texture key `augment_${id}_object` (TICKET-021). Rendering
+   * against that texture key isn't wired up yet, just the load. */
   asset: string;
-  /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- pass-through,
-   * same as `asset`. */
+  /** Folder path for the explosion VFX (e.g. "vfx/explosion/explosion_1") -- loadAugmentAssets()
+   * loads `explosionFrameCount` frames from this folder as `augment_${id}_explosion_${i}`. */
   explosionAsset: string;
   explosionFrameCount: number;
 }
