@@ -15,4 +15,12 @@ tank,3,24,79,110
 tank,4,30,99,138
 tank,5,38,124,173
 shooter,1,0,15,90
+shooter,2,0,19,113
+shooter,3,0,24,141
+shooter,4,0,30,176
+shooter,5,0,38,220
 charger,1,18,25,140
+charger,2,23,31,175
+charger,3,29,39,219
+charger,4,36,49,273
+charger,5,45,61,341
