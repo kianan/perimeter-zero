@@ -6,6 +6,11 @@ import { playSfx } from '../content/sfx';
 // visualRadius-derived size while fading out.
 const EXPLOSION_START_SCALE = 0.85;
 
+// How often explode() re-checks `this.paused` while the fuse has actually expired during a
+// pause -- see explode()'s paused branch. Short enough that resuming feels instant, long
+// enough not to spam timers.
+const PAUSED_EXPLODE_RETRY_MS = 100;
+
 export interface AoeLobConfig {
   targetX: number;
   targetY: number;
@@ -81,6 +86,11 @@ export interface AoeLobConfig {
  * from augment_weapon.csv/augment_weapon_scale.csv via content/augments.ts -- this class has
  * no hardcoded numbers of its own. */
 export class AoeLob extends Phaser.GameObjects.Sprite {
+  // Set/cleared via pause()/resume() -- same shape as Player's own paused flag
+  // (src/player/Player.ts), toggled from GameScene's openAugmentChoice()/
+  // resumeAfterAugmentChoice() via the activeAoeLobs tracking array.
+  private paused = false;
+
   constructor(scene: Phaser.Scene, x: number, y: number, private config: AoeLobConfig) {
     super(scene, x, y, config.textureKey);
     scene.add.existing(this);
@@ -112,7 +122,24 @@ export class AoeLob extends Phaser.GameObjects.Sprite {
     });
   }
 
+  pause() {
+    this.paused = true;
+  }
+
+  resume() {
+    this.paused = false;
+  }
+
   private explode() {
+    if (this.paused) {
+      // Fuse has genuinely expired, but the popup is open -- don't detonate, and don't just
+      // silently drop the call either (a skipped delayedCall never fires again, so the mine/
+      // grenade would never explode at all). Re-check on a short retry interval until resumed,
+      // same effect as pausing the countdown itself.
+      this.scene.time.delayedCall(PAUSED_EXPLODE_RETRY_MS, () => this.explode());
+      return;
+    }
+
     const scene = this.scene;
     const { x, y } = this;
     const {

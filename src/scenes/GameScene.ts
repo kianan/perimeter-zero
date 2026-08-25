@@ -62,6 +62,9 @@ export class GameScene extends Phaser.Scene {
   // rather than enemies. Same push/splice-on-DESTROY pattern as `bullets`/`enemies` -- see
   // trackEnemyBullet()/trackEnemy() below.
   private enemyBullets: Bullet[] = [];
+  // Currently in-flight/armed AoeLob instances (Grenade/Land Mine), so openAugmentChoice()/
+  // resumeAfterAugmentChoice() can pause/resume their fuses -- see trackAoeLob().
+  private activeAoeLobs: AoeLob[] = [];
   private keys!: Record<'W' | 'A' | 'S' | 'D', Phaser.Input.Keyboard.Key>;
   private hudText!: Phaser.GameObjects.Text;
   private roundStartTime = 0;
@@ -394,7 +397,7 @@ export class GameScene extends Phaser.Scene {
       delay: fireIntervalMs,
       loop: true,
       callback: () => {
-        if (enemy.isDying()) return;
+        if (this.paused || enemy.isDying()) return;
         const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
         const bullet = new Bullet(this, enemy.x, enemy.y, {
           angle,
@@ -418,7 +421,7 @@ export class GameScene extends Phaser.Scene {
     if (this.roundOver || this.paused) return;
     const targets = this.pickAoeLobTargets(tier.explosionCount, tier.targetMinDist, tier.targetMaxDist);
     for (const target of targets) {
-      new AoeLob(this, this.player.x, this.player.y, {
+      const lob = new AoeLob(this, this.player.x, this.player.y, {
         targetX: target.x,
         targetY: target.y,
         radius: tier.radius,
@@ -435,6 +438,7 @@ export class GameScene extends Phaser.Scene {
         deploySfx: identity.deploySfx,
         onExplode: (x, y, radius) => this.applyAoeLobDamage(x, y, radius, tier.damage),
       });
+      this.trackAoeLob(lob);
     }
   }
 
@@ -491,6 +495,17 @@ export class GameScene extends Phaser.Scene {
     bullet.once(Phaser.GameObjects.Events.DESTROY, () => {
       const i = this.enemyBullets.indexOf(bullet);
       if (i !== -1) this.enemyBullets.splice(i, 1);
+    });
+  }
+
+  /** Same push/splice-on-DESTROY pattern as trackBullet()/trackEnemyBullet(), so
+   * openAugmentChoice()/resumeAfterAugmentChoice() can pause/resume every currently-armed
+   * Grenade/Land Mine's fuse (see AoeLob.pause()/resume()). */
+  private trackAoeLob(lob: AoeLob) {
+    this.activeAoeLobs.push(lob);
+    lob.once(Phaser.GameObjects.Events.DESTROY, () => {
+      const i = this.activeAoeLobs.indexOf(lob);
+      if (i !== -1) this.activeAoeLobs.splice(i, 1);
     });
   }
 
@@ -572,6 +587,7 @@ export class GameScene extends Phaser.Scene {
     this.paused = true;
     this.player.pause();
     this.physics.pause();
+    for (const lob of this.activeAoeLobs) lob.pause();
     playSfx(this, 'level_up');
 
     const showTutorialHint = !hasSeenAugmentTutorial();
@@ -612,6 +628,7 @@ export class GameScene extends Phaser.Scene {
     this.paused = false;
     this.player.resume();
     this.physics.resume();
+    for (const lob of this.activeAoeLobs) lob.resume();
     this.checkAugmentLevelUp(); // augmentExp may already clear the next threshold too
   }
 
